@@ -4,8 +4,9 @@ $script:PrettyPowerShellSourcePath = $PSCommandPath
 $script:PrettyPowerShellRoot = if ($PSCommandPath) { Split-Path -Parent $PSCommandPath } else { $null }
 $script:IsInteractiveShell = $Host.Name -eq 'ConsoleHost' -and -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected
 $script:PrettyPowerShellBackupRoot = if ($PROFILE) { Join-Path (Split-Path -Parent $PROFILE) 'Backups' } else { $null }
-$script:PrettyPowerShellStarshipConfigPath = Join-Path $env:USERPROFILE '.config/starship.toml'
-$script:PrettyPowerShellFastfetchConfigPath = Join-Path $env:USERPROFILE '.config/fastfetch/config.jsonc'
+$script:PrettyPowerShellUserHome = if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }
+$script:PrettyPowerShellStarshipConfigPath = Join-Path $script:PrettyPowerShellUserHome '.config/starship.toml'
+$script:PrettyPowerShellFastfetchConfigPath = Join-Path $script:PrettyPowerShellUserHome '.config/fastfetch/config.jsonc'
 
 function Get-PrettyPowerShellInstallPath {
     $script:PrettyPowerShellSourcePath
@@ -86,19 +87,26 @@ function Initialize-PrettyReadLine {
         return
     }
 
-    Set-PSReadLineOption -PredictionViewStyle ListView -Colors @{
-        Command   = '#87CEEB'
-        Parameter = '#98FB98'
-        Operator  = '#FFB6C1'
-        Variable  = '#DDA0DD'
-        String    = '#FFDAB9'
-        Number    = '#B0E0E6'
-        Type      = '#F0E68C'
-        Comment   = '#D3D3D3'
-        Keyword   = '#8367c7'
-        Error     = '#FF6347'
+    $options = @{
+        Colors = @{
+            Command   = '#87CEEB'
+            Parameter = '#98FB98'
+            Operator  = '#FFB6C1'
+            Variable  = '#DDA0DD'
+            String    = '#FFDAB9'
+            Number    = '#B0E0E6'
+            Type      = '#F0E68C'
+            Comment   = '#D3D3D3'
+            Keyword   = '#8367c7'
+            Error     = '#FF6347'
+        }
     }
 
+    if ($PSVersionTable.PSEdition -eq 'Core') {
+        $options.PredictionViewStyle = 'ListView'
+    }
+
+    Set-PSReadLineOption @options
     Set-PSReadLineKeyHandler -Key UpArrow -Function HistorySearchBackward
     Set-PSReadLineKeyHandler -Key DownArrow -Function HistorySearchForward
     Set-PSReadLineKeyHandler -Key Tab -Function MenuComplete

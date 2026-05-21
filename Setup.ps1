@@ -6,7 +6,9 @@ param(
 
 $repoBase = 'https://raw.githubusercontent.com/Villoh/powershell-profile/main'
 $powerShellRoot = Split-Path -Parent $PROFILE
-$userHome = $env:USERPROFILE
+$userHome = if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }
+$osName = if ($PSVersionTable.Platform -eq 'Win32NT' -or $env:OS -eq 'Windows_NT') { 'Windows' } elseif ($IsMacOS) { 'macOS' } elseif ($IsLinux) { 'Linux' } else { 'Unknown' }
+$shellName = if ($PSVersionTable.PSEdition -eq 'Core') { 'PowerShell' } else { 'Windows PowerShell' }
 $starshipConfigDir = Join-Path $userHome '.config'
 $starshipConfigPath = Join-Path $starshipConfigDir 'starship.toml'
 $fastfetchConfigDir = Join-Path $userHome '.config/fastfetch'
@@ -423,12 +425,16 @@ if (-not $DryRun -and -not $Force) {
     Write-Host '  Pretty PowerShell Setup' -ForegroundColor White
     Write-Host '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━' -ForegroundColor Cyan
     Write-Host ''
+    Write-Host "OS: $osName" -ForegroundColor DarkGray
+    Write-Host "PowerShell: $shellName $($PSVersionTable.PSVersion)" -ForegroundColor DarkGray
+    Write-Host "Profile root: $powerShellRoot" -ForegroundColor DarkGray
+    Write-Host ''
 
     $installChoiceIdx = Invoke-InteractiveMenu `
         -Question 'Install location:' `
         -Options @(
-            '~/Documents/PowerShell/PrettyPowerShell  (recommended)',
-            '~/Documents/PowerShell'
+            "$powerShellRoot/PrettyPowerShell  (recommended)",
+            "$powerShellRoot"
         ) `
         -Default 0
 
