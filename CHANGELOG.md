@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Replaced Oh My Posh with Starship for prompt initialization.
 - Moved backup storage from alongside source files to `~/Documents/PowerShell/Backups/` with timestamped filenames.
+- Changed backup layout from flat timestamped filenames to dated subfolders `Backups/<yyyyMMdd-HHmmss>/<Files>` so all files from the same run are grouped together.
 - Added pre-update backup in `Update-Profile` and all refresh/force runs for rollback safety.
 - Unified install and migration output into grouped sectioned summary format matching dry-run output.
 

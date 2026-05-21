@@ -18,7 +18,9 @@ $installPath = Join-Path $installDir 'PrettyPowerShell.ps1'
 $starshipConfigDir = Join-Path $HOME '.config'
 $starshipConfigPath = Join-Path $starshipConfigDir 'starship.toml'
 $customProfilePath = Join-Path $powerShellRoot 'profile.ps1'
-$backupDir = Join-Path $powerShellRoot 'Backups'
+$backupRootDir = Join-Path $powerShellRoot 'Backups'
+$script:BackupTimestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+$backupDir = Join-Path $backupRootDir $script:BackupTimestamp
 $script:BackupDirLogged = $false
 $script:InstallLog = [ordered]@{
     Detect       = [System.Collections.Generic.List[string]]::new()
@@ -82,11 +84,10 @@ function Backup-File {
     param([string]$Path)
 
     if (Test-Path $Path) {
-        $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
         $fileName = Split-Path -Leaf $Path
-        $backupPath = Join-Path $backupDir "$fileName.$timestamp.bak"
+        $backupPath = Join-Path $backupDir $fileName
 
-        if (-not (Test-Path $backupDir) -and -not $script:BackupDirLogged) {
+        if (-not $script:BackupDirLogged) {
             if ($DryRun) {
                 Add-Log -Section Backups -Message "Would create backup folder: $backupDir"
             } else {
@@ -99,9 +100,6 @@ function Backup-File {
         if ($DryRun) {
             Add-Log -Section Backups -Message "Would back up $Path to $backupPath"
         } else {
-            if (-not (Test-Path $backupDir)) {
-                Ensure-Directory -Path $backupDir
-            }
             Copy-Item -Path $Path -Destination $backupPath -Force
             Add-Log -Section Backups -Message "Backed up $Path to $backupPath"
         }

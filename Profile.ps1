@@ -30,11 +30,12 @@ function Backup-PrettyPowerShellFile {
     }
 
     $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+    $backupDir = Join-Path $script:PrettyPowerShellBackupRoot $timestamp
     $fileName = Split-Path -Leaf $Path
-    $backupPath = Join-Path $script:PrettyPowerShellBackupRoot "$fileName.$timestamp.bak"
+    $backupPath = Join-Path $backupDir $fileName
 
-    if (-not (Test-Path $script:PrettyPowerShellBackupRoot)) {
-        New-Item -Path $script:PrettyPowerShellBackupRoot -ItemType Directory -Force | Out-Null
+    if (-not (Test-Path $backupDir)) {
+        New-Item -Path $backupDir -ItemType Directory -Force | Out-Null
     }
 
     Copy-Item -Path $Path -Destination $backupPath -Force
