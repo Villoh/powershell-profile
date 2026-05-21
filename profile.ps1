@@ -1,0 +1,296 @@
+### Pretty PowerShell standalone script
+
+$script:PrettyPowerShellSourcePath = $PSCommandPath
+$script:PrettyPowerShellRoot = if ($PSCommandPath) { Split-Path -Parent $PSCommandPath } else { $null }
+$script:IsInteractiveShell = $Host.Name -eq 'ConsoleHost' -and -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected
+
+function Get-PrettyPowerShellInstallPath {
+    $script:PrettyPowerShellSourcePath
+}
+
+function Get-PrettyPowerShellThemePath {
+    $powerShellRoot = if ($PROFILE) { Split-Path -Parent $PROFILE } else { $null }
+    $candidates = @(
+        if ($script:PrettyPowerShellRoot) { Join-Path $script:PrettyPowerShellRoot 'cobalt2.omp.json' }
+        if ($powerShellRoot) { Join-Path $powerShellRoot 'cobalt2.omp.json' }
+    ) | Where-Object { $_ }
+
+    $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+}
+
+function Initialize-PrettyPrompt {
+    if (-not $script:IsInteractiveShell) {
+        return
+    }
+
+    $ompExe = Get-Command oh-my-posh -CommandType Application -ErrorAction Ignore |
+        Select-Object -First 1 -ExpandProperty Source
+    $ompConfig = Get-PrettyPowerShellThemePath
+
+    if ($ompExe -and $ompConfig) {
+        & $ompExe init pwsh --config $ompConfig | Invoke-Expression
+    }
+}
+
+function Initialize-PrettyNavigation {
+    if (-not $script:IsInteractiveShell) {
+        return
+    }
+
+    $zoxideExe = Get-Command zoxide -CommandType Application -ErrorAction Ignore |
+        Select-Object -First 1 -ExpandProperty Source
+
+    if ($zoxideExe) {
+        Set-Variable -Name __zoxide_hooked -Scope Script -Value $false -Force
+        Set-Variable -Name __zoxide_hooked -Scope Global -Value $false -Force
+        & $zoxideExe init --cmd z powershell | Out-String | Invoke-Expression 2>$null
+    }
+}
+
+function Initialize-PrettyModules {
+    if (Get-Module -ListAvailable -Name Terminal-Icons) {
+        Import-Module -Name Terminal-Icons
+    }
+}
+
+function Initialize-PrettyReadLine {
+    if (-not $script:IsInteractiveShell) {
+        return
+    }
+
+    if (-not (Get-Module -ListAvailable -Name PSReadLine)) {
+        return
+    }
+
+    Set-PSReadLineOption -PredictionViewStyle ListView -Colors @{
+        Command   = '#87CEEB'
+        Parameter = '#98FB98'
+        Operator  = '#FFB6C1'
+        Variable  = '#DDA0DD'
+        String    = '#FFDAB9'
+        Number    = '#B0E0E6'
+        Type      = '#F0E68C'
+        Comment   = '#D3D3D3'
+        Keyword   = '#8367c7'
+        Error     = '#FF6347'
+    }
+
+    Set-PSReadLineKeyHandler -Key UpArrow -Function HistorySearchBackward
+    Set-PSReadLineKeyHandler -Key DownArrow -Function HistorySearchForward
+    Set-PSReadLineKeyHandler -Key Tab -Function MenuComplete
+    Set-PSReadLineKeyHandler -Chord 'Ctrl+d' -Function DeleteChar
+    Set-PSReadLineKeyHandler -Chord 'Ctrl+w' -Function BackwardDeleteWord
+    Set-PSReadLineKeyHandler -Chord 'Alt+d' -Function DeleteWord
+    Set-PSReadLineKeyHandler -Chord 'Ctrl+LeftArrow' -Function BackwardWord
+    Set-PSReadLineKeyHandler -Chord 'Ctrl+RightArrow' -Function ForwardWord
+    Set-PSReadLineKeyHandler -Chord 'Ctrl+z' -Function Undo
+    Set-PSReadLineKeyHandler -Chord 'Ctrl+y' -Function Redo
+}
+
+function Update-Profile {
+    [CmdletBinding()]
+    param(
+        [string]$Ref = 'main'
+    )
+
+    $installPath = Get-PrettyPowerShellInstallPath
+    if (-not $installPath) {
+        Write-Error 'Unable to determine Pretty PowerShell install path.'
+        return
+    }
+
+    $baseUrl = "https://raw.githubusercontent.com/Villoh/powershell-profile/$Ref"
+    $themePath = if ($script:PrettyPowerShellRoot) { Join-Path $script:PrettyPowerShellRoot 'cobalt2.omp.json' } else { $null }
+
+    Invoke-WebRequest -Uri "$baseUrl/profile.ps1" -OutFile $installPath
+    if ($themePath) {
+        Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/cobalt2.omp.json' -OutFile $themePath
+    }
+
+    Write-Host "Updated Pretty PowerShell script at $installPath" -ForegroundColor Green
+}
+
+function touch ($File) {
+    if (Test-Path $File) {
+        (Get-Item $File).LastWriteTime = Get-Date
+    } else {
+        New-Item $File -ItemType File | Out-Null
+    }
+}
+
+function mkcd ($Path) {
+    New-Item -Path $Path -ItemType Directory -Force | Out-Null
+    Set-Location -Path $Path
+}
+
+function trash ($Path) {
+    if (Test-Path $Path -PathType Container) {
+        [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory($Path, 'OnlyErrorDialogs', 'SendToRecycleBin')
+    } else {
+        [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile($Path, 'OnlyErrorDialogs', 'SendToRecycleBin')
+    }
+}
+
+function ff ($Name) {
+    Get-ChildItem -Recurse -Filter $Name -File | Select-Object -ExpandProperty FullName
+}
+
+function head ($Path) {
+    Get-Content $Path -Head 10
+}
+
+function sed ($File, $Find, $Replace) {
+    (Get-Content $File).replace("$Find", $Replace) | Set-Content $File
+}
+
+function which ($Name) {
+    (Get-Command $Name).Source
+}
+
+function unzip ($File) {
+    if (-not (Test-Path $File -PathType Leaf)) {
+        Write-Error "File not found: $File"
+        return
+    }
+
+    Expand-Archive -Path $File -DestinationPath (Get-Location) -Force
+}
+
+function pgrep ($Name) {
+    Get-Process -Name $Name -ErrorAction SilentlyContinue
+}
+
+function pkill ($Name) {
+    Get-Process -Name $Name -ErrorAction SilentlyContinue | Stop-Process -Force
+}
+
+function k9 ($Name) {
+    pkill $Name
+}
+
+function grep ($Pattern, $Path) {
+    if ($Path) {
+        Get-ChildItem -Path $Path -Recurse -File -ErrorAction SilentlyContinue | Select-String -Pattern $Pattern
+    } elseif ($input) {
+        $input | Select-String -Pattern $Pattern
+    } else {
+        Write-Error 'Usage: grep <pattern> [path] or pipe input to grep'
+    }
+}
+
+function uptime {
+    if (Get-Command Get-Uptime -ErrorAction SilentlyContinue) {
+        $boot = Get-Uptime -Since
+    } else {
+        $boot = (Get-CimInstance -ClassName Win32_OperatingSystem).LastBootUpTime
+    }
+    (Get-Date) - $boot | Select-Object Days, Hours, Minutes, Seconds
+}
+
+function winutil {
+    Invoke-RestMethod https://christitus.com/win | Invoke-Expression
+}
+
+function winutildev {
+    Invoke-RestMethod https://christitus.com/windev | Invoke-Expression
+}
+
+function gs { git status }
+function ga { git add . }
+function gp { git push }
+function gpush { git push }
+function gpull { git pull }
+function gcl { git clone $args }
+
+function gcom {
+    git add .
+    git commit -m "$args"
+}
+
+function lazyg {
+    git add .
+    git commit -m "$args"
+    git push
+}
+
+function g {
+    if (Get-Command __zoxide_z -ErrorAction SilentlyContinue) {
+        __zoxide_z github
+    } elseif (Test-Path "$HOME/github") {
+        Set-Location "$HOME/github"
+    }
+}
+
+function docs {
+    Set-Location -Path ([Environment]::GetFolderPath('MyDocuments'))
+}
+
+function la {
+    Get-ChildItem | Format-Table -AutoSize
+}
+
+function ll {
+    Get-ChildItem -Force | Format-Table -AutoSize
+}
+
+function Show-Help {
+    $title    = $PSStyle.Foreground.BrightMagenta
+    $section  = $PSStyle.Foreground.BrightBlue
+    $command  = $PSStyle.Foreground.BrightGreen
+    $desc     = $PSStyle.Foreground.BrightWhite
+    $accent   = $PSStyle.Foreground.BrightYellow
+    $dim      = $PSStyle.Foreground.BrightBlack
+    $reset    = $PSStyle.Reset
+    $installPath = Get-PrettyPowerShellInstallPath
+
+    Write-Host @"
+${title}󰘳 Pretty PowerShell Help${reset}
+${dim}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${reset}
+
+${section}󰊢 Script${reset}
+${dim}────────────────────────────────────────────────────${reset}
+  ${command}Loaded from${reset}        ${accent}→${reset} ${desc}$installPath${reset}
+  ${command}Update-Profile${reset}     ${accent}→${reset} ${desc}Updates standalone Pretty PowerShell script.${reset}
+
+${section}󰊢 Git Shortcuts${reset}
+${dim}────────────────────────────────────────────────────${reset}
+  ${command}g${reset}                  ${accent}→${reset} ${desc}Changes to GitHub directory${reset}
+  ${command}ga${reset}                 ${accent}→${reset} ${desc}git add .${reset}
+  ${command}gcl <repo>${reset}         ${accent}→${reset} ${desc}git clone${reset}
+  ${command}gcom <message>${reset}     ${accent}→${reset} ${desc}add + commit${reset}
+  ${command}gp / gpush${reset}         ${accent}→${reset} ${desc}git push${reset}
+  ${command}gpull${reset}              ${accent}→${reset} ${desc}git pull${reset}
+  ${command}gs${reset}                 ${accent}→${reset} ${desc}git status${reset}
+  ${command}lazyg <message>${reset}    ${accent}→${reset} ${desc}add + commit + push${reset}
+
+${section}󰘴 System Shortcuts${reset}
+${dim}────────────────────────────────────────────────────${reset}
+  ${command}docs${reset}               ${accent}→${reset} ${desc}Documents folder${reset}
+  ${command}ff <name>${reset}          ${accent}→${reset} ${desc}Search files${reset}
+  ${command}grep <pattern> [path]${reset} ${accent}→${reset} ${desc}Search text${reset}
+  ${command}head <file>${reset}        ${accent}→${reset} ${desc}First lines${reset}
+  ${command}k9 <name>${reset}          ${accent}→${reset} ${desc}Kill process by name${reset}
+  ${command}ll${reset}                 ${accent}→${reset} ${desc}List files${reset}
+  ${command}mkcd <dir>${reset}         ${accent}→${reset} ${desc}Create + enter dir${reset}
+  ${command}pgrep <name>${reset}       ${accent}→${reset} ${desc}Find process by name${reset}
+  ${command}pkill <name>${reset}       ${accent}→${reset} ${desc}Stop process by name${reset}
+  ${command}sed <file> <find> <replace>${reset} ${accent}→${reset} ${desc}Replace text${reset}
+  ${command}touch <file>${reset}       ${accent}→${reset} ${desc}Create file${reset}
+  ${command}unzip <file>${reset}       ${accent}→${reset} ${desc}Extract zip${reset}
+  ${command}uptime${reset}             ${accent}→${reset} ${desc}System uptime${reset}
+  ${command}which <name>${reset}       ${accent}→${reset} ${desc}Locate command${reset}
+  ${command}winutil${reset}            ${accent}→${reset} ${desc}Run WinUtil${reset}
+  ${command}winutildev${reset}         ${accent}→${reset} ${desc}Run WinUtil Dev${reset}
+
+${dim}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${reset}
+"@
+}
+
+Initialize-PrettyPrompt
+Initialize-PrettyNavigation
+Initialize-PrettyModules
+Initialize-PrettyReadLine
+
+if ($script:IsInteractiveShell) {
+    Write-Host "Use 'Show-Help' to list all available functions" -ForegroundColor Yellow
+}
