@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added fastfetch folder backup (`config.jsonc` + `ascii.txt`) into dated `Backups/<timestamp>/fastfetch/` subfolder.
 - Added `fastfetch-cli.fastfetch` to `-InstallDependencies` winget install list.
 - Added `Backup-Directory` helper for recursive folder backups.
+- Added `fastfetch/config.jsonc` and `fastfetch/ascii.txt` to repo as default fastfetch config bootstrapped when user has no existing config.
+- Added `Ensure-FastfetchConfig` to installer mirroring `Ensure-StarshipConfig` behavior — installs default config if missing, skips if already present.
 
 ### Changed
 

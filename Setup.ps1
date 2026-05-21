@@ -319,6 +319,25 @@ function Migrate-LegacyProfile {
     }
 }
 
+function Ensure-FastfetchConfig {
+    if (Test-Path $fastfetchConfigPath) {
+        Add-Log -Section Install -Message "Fastfetch config already exists: $fastfetchConfigDir"
+        return $false
+    }
+
+    if ($DryRun) {
+        Add-Log -Section Install -Message "Would create directory: $fastfetchConfigDir"
+        Add-Log -Section Install -Message "Would download fastfetch config and ascii art to $fastfetchConfigDir"
+        return $true
+    }
+
+    Ensure-Directory -Path $fastfetchConfigDir
+    Install-RemoteFile -Uri "$repoBase/fastfetch/config.jsonc" -Destination $fastfetchConfigPath
+    Install-RemoteFile -Uri "$repoBase/fastfetch/ascii.txt" -Destination (Join-Path $fastfetchConfigDir 'ascii.txt')
+    Add-Log -Section Install -Message "Initialized fastfetch config at $fastfetchConfigDir"
+    return $true
+}
+
 function Ensure-StarshipConfig {
     if (Test-Path $starshipConfigPath) {
         Add-Log -Section Install -Message "Starship config already exists: $starshipConfigPath"
@@ -393,6 +412,7 @@ if (Test-Path $fastfetchConfigDir) {
 Install-RemoteFile -Uri "$repoBase/Profile.ps1" -Destination $installPath
 Install-Dependencies
 Ensure-StarshipConfig | Out-Null
+Ensure-FastfetchConfig | Out-Null
 
 $migrationResult = if ($MigrateLegacyProfile) {
     Migrate-LegacyProfile -ScriptPath $installPath -ForceMigration:$Force
