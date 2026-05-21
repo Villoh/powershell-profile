@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (e.g. 1.0.2). Empty = auto-detect from CHANGELOG.md.'
+        description: "Version to release (e.g. 1.0.2). Empty = auto-detect from CHANGELOG.md."
         required: false
         type: string
 
@@ -119,10 +119,11 @@ jobs:
           LOGINS=$(git log $RANGE --pretty=format:'%H' | while read -r sha; do
             curl -s "https://api.github.com/repos/${{ github.repository }}/commits/$sha" \
               -H "Authorization: Bearer ${{ github.token }}" \
-              | grep -oP '(?<="login": ")[^"]+' | head -1
-          done | sort -u | grep -v '\[bot\]' | grep -v '^$')
+              | { grep -oP '(?<="login": ")[^"]+' || :; } | head -1
+          done | sort -u | { grep -v '\[bot\]' || :; } | { grep -v '^$' || :; })
 
-          AVATARS=$(for login in $LOGINS; do
+          AVATARS=$(echo "$LOGINS" | head -20 | while read -r login; do
+            [ -z "$login" ] && continue
             printf '<a href="https://github.com/%s"><img src="https://wsrv.nl/?url=github.com/%s.png&w=32&h=32&mask=circle" width="32" height="32" alt="@%s" /></a>&nbsp;' \
               "$login" "$login" "$login"
           done)
@@ -134,7 +135,7 @@ jobs:
           printf '\n<details open>\n<summary><b>📜 Commit history (%s &rarr; %s)</b></summary>\n\n' \
             "${PREV_TAG:-initial}" "${{ steps.release_info.outputs.tag }}" >> release-notes.md
 
-          git log --reverse $RANGE \
+          git log --reverse $RANGE --max-count=50 \
             --format="- [\`%h\`](https://github.com/${{ github.repository }}/commit/%H) %s" \
             >> release-notes.md
 
