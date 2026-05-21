@@ -75,20 +75,33 @@ jobs:
         shell: bash
         run: echo 'No released changelog version ready for publish. Skipping.'
 
-      - name: Check whether tag already exists
+      - name: Check whether tag and release already exist
         if: steps.release_info.outputs.release == 'true'
         id: tag_check
         shell: bash
         run: |
           git fetch --tags --force
           TAG="${{ steps.release_info.outputs.tag }}"
+
           if git tag -l "$TAG" | grep -q "$TAG"; then
             echo "tag_exists=true" >> "$GITHUB_OUTPUT"
-            echo "Tag $TAG already exists. Skipping release creation."
+            echo "Tag $TAG already exists."
           else
             echo "tag_exists=false" >> "$GITHUB_OUTPUT"
             echo "Tag $TAG does not exist yet."
           fi
+
+          RELEASE_EXISTS=$(gh api repos/${{ github.repository }}/releases/tags/$TAG \
+            --jq '.id' 2>/dev/null || echo '')
+          if [ -n "$RELEASE_EXISTS" ]; then
+            echo "release_exists=true" >> "$GITHUB_OUTPUT"
+            echo "Release $TAG already exists. Skipping."
+          else
+            echo "release_exists=false" >> "$GITHUB_OUTPUT"
+            echo "Release $TAG does not exist yet."
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Create and push tag
         if: >
@@ -105,12 +118,13 @@ jobs:
       - name: Build release extras
         if: >
           steps.release_info.outputs.release == 'true' &&
-          steps.tag_check.outputs.tag_exists != 'true'
+          steps.tag_check.outputs.release_exists != 'true'
         shell: bash
         run: |
-          PREV_TAG=$(git tag --sort=-version:refname | sed -n '2p')
-          RANGE=${PREV_TAG:+"$PREV_TAG..HEAD"}
-          RANGE=${RANGE:-HEAD}
+          TAG="${{ steps.release_info.outputs.tag }}"
+          PREV_TAG=$(git tag --sort=-version:refname | grep -v "^${TAG}$" | head -1)
+          RANGE=${PREV_TAG:+"$PREV_TAG..$TAG"}
+          RANGE=${RANGE:-$TAG}
 
           # Commit history
           COMMITS=$(git log $RANGE --pretty=format:'- `%h` %s')
@@ -128,7 +142,7 @@ jobs:
               "$login" "$login" "$login"
           done)
 
-          COMPARE_URL="https://github.com/${{ github.repository }}/compare/${PREV_TAG}...HEAD"
+          COMPARE_URL="https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${TAG}"
 
           printf '\n## Contributors\n\n%s\n' "$AVATARS" >> release-notes.md
 
@@ -146,7 +160,7 @@ jobs:
       - name: Create GitHub release
         if: >
           steps.release_info.outputs.release == 'true' &&
-          steps.tag_check.outputs.tag_exists != 'true'
+          steps.tag_check.outputs.release_exists != 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release_info.outputs.tag }}
