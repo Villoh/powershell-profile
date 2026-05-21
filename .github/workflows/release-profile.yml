@@ -1,0 +1,76 @@
+name: Release profile
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-profile-main
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release from changelog
+        id: release_info
+        shell: pwsh
+        run: |
+          ./.github/scripts/get-release-from-changelog.ps1 `
+            -ChangelogPath CHANGELOG.md `
+            -ReleaseNotesPath release-notes.md `
+            -GitHubOutputPath $env:GITHUB_OUTPUT
+
+      - name: Stop when changelog has no released version
+        if: steps.release_info.outputs.release != 'true'
+        shell: pwsh
+        run: |
+          Write-Host 'No released changelog version ready for publish. Skipping.'
+
+      - name: Check whether tag already exists
+        if: steps.release_info.outputs.release == 'true'
+        id: tag_check
+        shell: pwsh
+        run: |
+          git fetch --tags --force
+          $tag = '${{ steps.release_info.outputs.tag }}'
+          $tagExists = if (git tag -l $tag) { 'true' } else { 'false' }
+          "tag_exists=$tagExists" | Add-Content -LiteralPath $env:GITHUB_OUTPUT
+
+          if ($tagExists -eq 'true') {
+            Write-Host "Tag $tag already exists. Skipping release creation."
+          } else {
+            Write-Host "Tag $tag does not exist yet."
+          }
+
+      - name: Create and push tag
+        if: steps.release_info.outputs.release == 'true' && steps.tag_check.outputs.tag_exists != 'true'
+        shell: pwsh
+        run: |
+          $tag = '${{ steps.release_info.outputs.tag }}'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a $tag ${{ github.sha }} -m "Release $tag"
+          git push origin $tag
+
+      - name: Create GitHub release
+        if: steps.release_info.outputs.release == 'true' && steps.tag_check.outputs.tag_exists != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_info.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: Pretty PowerShell ${{ steps.release_info.outputs.tag }}
+          body_path: ${{ steps.release_info.outputs.body_path }}
+          prerelease: ${{ steps.release_info.outputs.prerelease == 'true' }}
+          files: |
+            Profile.ps1

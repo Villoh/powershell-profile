@@ -1,0 +1,108 @@
+name: Validate PowerShell
+
+on:
+  push:
+    paths:
+      - "**/*.ps1"
+      - ".github/workflows/validate-powershell.yml"
+      - ".github/workflows/release-profile.yml"
+      - ".github/scripts/**"
+  pull_request:
+    paths:
+      - "**/*.ps1"
+      - ".github/workflows/validate-powershell.yml"
+      - ".github/workflows/release-profile.yml"
+      - ".github/scripts/**"
+
+jobs:
+  validate:
+    name: Validate on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module PSScriptAnalyzer -Scope CurrentUser -Force -ErrorAction Stop
+
+      - name: Validate PowerShell syntax
+        shell: pwsh
+        run: |
+          $scripts = Get-ChildItem -Path . -Recurse -File -Filter *.ps1 |
+            Sort-Object FullName
+
+          if (-not $scripts) {
+            throw 'No PowerShell scripts found.'
+          }
+
+          $parseFailures = @()
+          foreach ($script in $scripts) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($script.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+
+            if ($errors) {
+              $parseFailures += [pscustomobject]@{
+                Path = $script.FullName
+                Errors = $errors
+              }
+            }
+          }
+
+          if ($parseFailures.Count -gt 0) {
+            foreach ($failure in $parseFailures) {
+              foreach ($error in $failure.Errors) {
+                Write-Error "$($failure.Path):$($error.Extent.StartLineNumber) $($error.Message)"
+              }
+            }
+
+            throw "PowerShell parser found errors in $($parseFailures.Count) script(s)."
+          }
+
+          Write-Host "PowerShell parser passed for $($scripts.Count) script(s)."
+
+      - name: Run PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          $scripts = Get-ChildItem -Path . -Recurse -File -Filter *.ps1 |
+            Sort-Object FullName |
+            Select-Object -ExpandProperty FullName
+
+          $issues = Invoke-ScriptAnalyzer -Path $scripts -Recurse
+          if (-not $issues) {
+            Write-Host 'PSScriptAnalyzer found no issues.'
+            exit 0
+          }
+
+          foreach ($issue in $issues) {
+            $message = $issue.Message.Replace("`r", ' ').Replace("`n", ' ')
+            $rule = $issue.RuleName
+            $line = if ($issue.Line) { $issue.Line } else { 1 }
+            $column = if ($issue.Column) { $issue.Column } else { 1 }
+            $path = if ($issue.ScriptPath) { $issue.ScriptPath } else { '.' }
+
+            if ($issue.Severity -eq 'Error') {
+              Write-Host "::error file=$path,line=$line,col=$column,title=$rule::$message"
+            } else {
+              Write-Host "::warning file=$path,line=$line,col=$column,title=$rule::$message"
+            }
+          }
+
+          $errorCount = @($issues | Where-Object Severity -eq 'Error').Count
+          $warningCount = @($issues | Where-Object Severity -eq 'Warning').Count
+
+          Write-Host "PSScriptAnalyzer found $errorCount error(s) and $warningCount warning(s)."
+
+          if ($errorCount -gt 0) {
+            throw 'PSScriptAnalyzer reported errors.'
+          }
