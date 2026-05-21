@@ -15,7 +15,8 @@ $installDir = switch ($InstallMode) {
     'PowerShellRoot' { $powerShellRoot }
 }
 $installPath = Join-Path $installDir 'PrettyPowerShell.ps1'
-$themePath = Join-Path $installDir 'cobalt2.omp.json'
+$starshipConfigDir = Join-Path $HOME '.config'
+$starshipConfigPath = Join-Path $starshipConfigDir 'starship.toml'
 $customProfilePath = Join-Path $powerShellRoot 'profile.ps1'
 $backupDir = Join-Path $powerShellRoot 'Backups'
 $script:DryRunBackupDirPlanned = $false
@@ -254,6 +255,28 @@ function Migrate-LegacyProfile {
     }
 }
 
+function Ensure-StarshipConfig {
+    if (Test-Path $starshipConfigPath) {
+        return $false
+    }
+
+    if ($DryRun) {
+        Add-DryRunAction -Section Install -Message "Would create directory: $starshipConfigDir"
+        Add-DryRunAction -Section Install -Message "Would initialize Starship preset catppuccin-powerline at $starshipConfigPath"
+        return $true
+    }
+
+    Ensure-Directory -Path $starshipConfigDir
+    $starshipExe = Get-Command starship -CommandType Application -ErrorAction SilentlyContinue
+    if (-not $starshipExe) {
+        Write-Warning 'Starship not found. Install it first, then run: starship preset catppuccin-powerline -o ~/.config/starship.toml'
+        return $false
+    }
+
+    & $starshipExe.Source preset catppuccin-powerline -o $starshipConfigPath
+    return $true
+}
+
 function Install-Dependencies {
     if (-not $InstallDependencies) {
         return
@@ -262,9 +285,9 @@ function Install-Dependencies {
     if ($DryRun) {
         Add-DryRunAction -Section Dependencies -Message 'Would install Terminal-Icons module.'
         if (Get-Command winget -ErrorAction SilentlyContinue) {
-            Add-DryRunAction -Section Dependencies -Message 'Would install Oh My Posh, zoxide, and JetBrainsMono Nerd Font via winget.'
+            Add-DryRunAction -Section Dependencies -Message 'Would install Starship, zoxide, and JetBrainsMono Nerd Font via winget.'
         } else {
-            Add-DryRunAction -Section Dependencies -Message 'Would require manual install of Oh My Posh, zoxide, and JetBrainsMono Nerd Font because winget was not found.'
+            Add-DryRunAction -Section Dependencies -Message 'Would require manual install of Starship, zoxide, and JetBrainsMono Nerd Font because winget was not found.'
         }
         return
     }
@@ -276,9 +299,10 @@ function Install-Dependencies {
     }
 
     if (Get-Command winget -ErrorAction SilentlyContinue) {
-        winget install JanDeDobbeleer.OhMyPosh ajeetdsouza.zoxide DEVCOM.JetBrainsMonoNerdFont --source winget --silent
+        winget install --id Starship.Starship --source winget --silent
+        winget install ajeetdsouza.zoxide DEVCOM.JetBrainsMonoNerdFont --source winget --silent
     } else {
-        Write-Warning 'winget not found. Install Oh My Posh, zoxide, and JetBrainsMono Nerd Font manually if needed.'
+        Write-Warning 'winget not found. Install Starship, zoxide, and JetBrainsMono Nerd Font manually if needed.'
     }
 }
 
@@ -287,13 +311,13 @@ Ensure-Directory -Path $installDir
 if (Test-Path $installPath) {
     Backup-File -Path $installPath | Out-Null
 }
-if (Test-Path $themePath) {
-    Backup-File -Path $themePath | Out-Null
+if (Test-Path $starshipConfigPath) {
+    Backup-File -Path $starshipConfigPath | Out-Null
 }
 
 Install-RemoteFile -Uri "$repoBase/Profile.ps1" -Destination $installPath
-Install-RemoteFile -Uri 'https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/cobalt2.omp.json' -Destination $themePath
 Install-Dependencies
+Ensure-StarshipConfig | Out-Null
 
 $migrationResult = if ($MigrateLegacyProfile) {
     Migrate-LegacyProfile -ScriptPath $installPath -ForceMigration:$Force
@@ -310,7 +334,7 @@ $migrationResult = if ($MigrateLegacyProfile) {
 
 if ($DryRun) {
     Add-DryRunAction -Section Result -Message "Standalone script path: $installPath"
-    Add-DryRunAction -Section Result -Message "Theme path: $themePath"
+    Add-DryRunAction -Section Result -Message "Starship config path: $starshipConfigPath"
 
     if ($migrationResult.Migrated) {
         Add-DryRunAction -Section Result -Message "Would migrate legacy main profile: $PROFILE"
@@ -335,7 +359,7 @@ if ($DryRun) {
 } else {
     Write-Host 'Pretty PowerShell installed as standalone script.' -ForegroundColor Green
     Write-Host "Script path: $installPath" -ForegroundColor Green
-    Write-Host "Theme path:  $themePath" -ForegroundColor Green
+    Write-Host "Starship config path: $starshipConfigPath" -ForegroundColor Green
 
     if ($migrationResult.Migrated) {
         Write-Host "Legacy main profile migrated: $PROFILE" -ForegroundColor Green

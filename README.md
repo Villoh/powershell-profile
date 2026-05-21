@@ -1,6 +1,6 @@
 # 🎨 Pretty PowerShell
 
-Pretty PowerShell is a standalone PowerShell customization script focused on safer installation, easier updates, and clearer ownership boundaries.
+Pretty PowerShell is a standalone PowerShell customization script focused on safer installation, easier updates, clearer ownership boundaries, and a Starship-based prompt.
 
 > This repository is a fork of `ChrisTitusTech/powershell-profile`, refactored around a standalone-script architecture.
 
@@ -22,6 +22,8 @@ Default install downloads Pretty PowerShell to:
 - `~/Documents/PowerShell/Functions/PrettyPowerShell.ps1`
 
 and appends a loader to your main `$PROFILE`.
+
+Prompt setup uses Starship. If `~/.config/starship.toml` does not exist yet, installer bootstraps it with Starship's recommended Catppuccin Powerline preset.
 
 ```powershell
 irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1 | iex
@@ -56,13 +58,20 @@ Migration will:
 & ([scriptblock]::Create((irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1))) -InstallDependencies
 ```
 
+This installs:
+
+- `Starship`
+- `zoxide`
+- `JetBrainsMono Nerd Font`
+- `Terminal-Icons`
+
 ### Force refresh existing install
 
 ```powershell
 & ([scriptblock]::Create((irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1))) -Force
 ```
 
-Existing installed script and theme are backed up before refresh. Use `-Force` with `-MigrateLegacyProfile` if legacy detection is inconclusive.
+Existing installed script and Starship config are backed up before refresh when present. Use `-Force` with `-MigrateLegacyProfile` if legacy detection is inconclusive.
 
 ### Preview install without changes
 
@@ -78,9 +87,11 @@ Existing installed script and theme are backed up before refresh. Use `-Force` w
 
 ## Update behavior
 
-`Update-Profile` updates installed standalone script and adjacent theme file.
+`Update-Profile` updates installed standalone script.
 
 Before overwrite, `Update-Profile`, reinstall, refresh, and `-Force` runs back up existing installed files into `~/Documents/PowerShell/Backups/`.
+
+When present, Starship config is backed up there too.
 
 Migration backups are stored in:
 
@@ -90,10 +101,20 @@ with timestamped filenames like:
 
 - `Backups/Microsoft.PowerShell_profile.ps1.20260521-143000.bak`
 
+## Prompt styling
+
+Pretty PowerShell now uses Starship instead of Oh My Posh.
+
+Recommended baseline:
+
+- install Starship
+- use preset command from Starship docs:
+  - `starship preset catppuccin-powerline -o ~/.config/starship.toml`
+- customize `C:\Users\mikel\.config\starship.toml` to taste
+
 ## Recommended extras
 
 - `JetBrainsMono Nerd Font`
-- `oh-my-posh`
 - `zoxide`
 - `Terminal-Icons`
 

@@ -4,19 +4,18 @@ $script:PrettyPowerShellSourcePath = $PSCommandPath
 $script:PrettyPowerShellRoot = if ($PSCommandPath) { Split-Path -Parent $PSCommandPath } else { $null }
 $script:IsInteractiveShell = $Host.Name -eq 'ConsoleHost' -and -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected
 $script:PrettyPowerShellBackupRoot = if ($PROFILE) { Join-Path (Split-Path -Parent $PROFILE) 'Backups' } else { $null }
+$script:PrettyPowerShellStarshipConfigPath = Join-Path $HOME '.config/starship.toml'
 
 function Get-PrettyPowerShellInstallPath {
     $script:PrettyPowerShellSourcePath
 }
 
-function Get-PrettyPowerShellThemePath {
-    $powerShellRoot = if ($PROFILE) { Split-Path -Parent $PROFILE } else { $null }
-    $candidates = @(
-        if ($script:PrettyPowerShellRoot) { Join-Path $script:PrettyPowerShellRoot 'cobalt2.omp.json' }
-        if ($powerShellRoot) { Join-Path $powerShellRoot 'cobalt2.omp.json' }
-    ) | Where-Object { $_ }
+function Get-PrettyPowerShellStarshipConfigPath {
+    if (Test-Path $script:PrettyPowerShellStarshipConfigPath) {
+        return $script:PrettyPowerShellStarshipConfigPath
+    }
 
-    $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+    return $null
 }
 
 function Backup-PrettyPowerShellFile {
@@ -47,12 +46,11 @@ function Initialize-PrettyPrompt {
         return
     }
 
-    $ompExe = Get-Command oh-my-posh -CommandType Application -ErrorAction Ignore |
+    $starshipExe = Get-Command starship -CommandType Application -ErrorAction Ignore |
         Select-Object -First 1 -ExpandProperty Source
-    $ompConfig = Get-PrettyPowerShellThemePath
 
-    if ($ompExe -and $ompConfig) {
-        & $ompExe init pwsh --config $ompConfig | Invoke-Expression
+    if ($starshipExe) {
+        Invoke-Expression (& $starshipExe init powershell)
     }
 }
 
@@ -124,21 +122,18 @@ function Update-Profile {
     }
 
     $baseUrl = "https://raw.githubusercontent.com/Villoh/powershell-profile/$Ref"
-    $themePath = if ($script:PrettyPowerShellRoot) { Join-Path $script:PrettyPowerShellRoot 'cobalt2.omp.json' } else { $null }
+    $starshipConfigPath = Get-PrettyPowerShellStarshipConfigPath
     $scriptBackup = Backup-PrettyPowerShellFile -Path $installPath
-    $themeBackup = Backup-PrettyPowerShellFile -Path $themePath
+    $starshipConfigBackup = Backup-PrettyPowerShellFile -Path $starshipConfigPath
 
     Invoke-WebRequest -Uri "$baseUrl/Profile.ps1" -OutFile $installPath
-    if ($themePath) {
-        Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/cobalt2.omp.json' -OutFile $themePath
-    }
 
     Write-Host "Updated Pretty PowerShell script at $installPath" -ForegroundColor Green
     if ($scriptBackup) {
         Write-Host "Backup created: $scriptBackup" -ForegroundColor Yellow
     }
-    if ($themeBackup) {
-        Write-Host "Theme backup created: $themeBackup" -ForegroundColor Yellow
+    if ($starshipConfigBackup) {
+        Write-Host "Starship config backup created: $starshipConfigBackup" -ForegroundColor Yellow
     }
 }
 
