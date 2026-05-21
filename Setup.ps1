@@ -19,31 +19,35 @@ $starshipConfigDir = Join-Path $HOME '.config'
 $starshipConfigPath = Join-Path $starshipConfigDir 'starship.toml'
 $customProfilePath = Join-Path $powerShellRoot 'profile.ps1'
 $backupDir = Join-Path $powerShellRoot 'Backups'
-$script:DryRunBackupDirPlanned = $false
-$script:DryRunActions = [ordered]@{
-    Detect = [System.Collections.Generic.List[string]]::new()
-    Install = [System.Collections.Generic.List[string]]::new()
-    Backups = [System.Collections.Generic.List[string]]::new()
-    Migration = [System.Collections.Generic.List[string]]::new()
+$script:BackupDirLogged = $false
+$script:InstallLog = [ordered]@{
+    Detect       = [System.Collections.Generic.List[string]]::new()
+    Install      = [System.Collections.Generic.List[string]]::new()
+    Backups      = [System.Collections.Generic.List[string]]::new()
+    Migration    = [System.Collections.Generic.List[string]]::new()
     Dependencies = [System.Collections.Generic.List[string]]::new()
-    Result = [System.Collections.Generic.List[string]]::new()
+    Result       = [System.Collections.Generic.List[string]]::new()
 }
 
-function Add-DryRunAction {
+function Add-Log {
     param(
         [ValidateSet('Detect', 'Install', 'Backups', 'Migration', 'Dependencies', 'Result')]
         [string]$Section,
         [string]$Message
     )
 
-    $script:DryRunActions[$Section].Add($Message)
+    $script:InstallLog[$Section].Add($Message)
 }
 
-function Write-DryRunSummary {
-    Write-Host '[DryRun] Pretty PowerShell preview' -ForegroundColor Cyan
+function Write-InstallSummary {
+    if ($DryRun) {
+        Write-Host '[DryRun] Pretty PowerShell preview' -ForegroundColor Cyan
+    } else {
+        Write-Host 'Pretty PowerShell installed.' -ForegroundColor Green
+    }
 
-    foreach ($section in $script:DryRunActions.Keys) {
-        $entries = $script:DryRunActions[$section]
+    foreach ($section in $script:InstallLog.Keys) {
+        $entries = $script:InstallLog[$section]
         if ($entries.Count -eq 0) {
             continue
         }
@@ -56,7 +60,9 @@ function Write-DryRunSummary {
     }
 
     Write-Host ''
-    Write-Host '[DryRun] No files were changed.' -ForegroundColor Cyan
+    if ($DryRun) {
+        Write-Host '[DryRun] No files were changed.' -ForegroundColor Cyan
+    }
 }
 
 function Ensure-Directory {
@@ -64,10 +70,11 @@ function Ensure-Directory {
 
     if (-not (Test-Path $Path)) {
         if ($DryRun) {
-            Add-DryRunAction -Section Install -Message "Would create directory: $Path"
+            Add-Log -Section Install -Message "Would create directory: $Path"
             return
         }
         New-Item -Path $Path -ItemType Directory -Force | Out-Null
+        Add-Log -Section Install -Message "Created directory: $Path"
     }
 }
 
@@ -78,16 +85,27 @@ function Backup-File {
         $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
         $fileName = Split-Path -Leaf $Path
         $backupPath = Join-Path $backupDir "$fileName.$timestamp.bak"
-        if ($DryRun) {
-            if (-not (Test-Path $backupDir) -and -not $script:DryRunBackupDirPlanned) {
-                Add-DryRunAction -Section Backups -Message "Would create backup folder: $backupDir"
-                $script:DryRunBackupDirPlanned = $true
+
+        if (-not (Test-Path $backupDir) -and -not $script:BackupDirLogged) {
+            if ($DryRun) {
+                Add-Log -Section Backups -Message "Would create backup folder: $backupDir"
+            } else {
+                Ensure-Directory -Path $backupDir
+                Add-Log -Section Backups -Message "Created backup folder: $backupDir"
             }
-            Add-DryRunAction -Section Backups -Message "Would back up $Path to $backupPath"
-            return $backupPath
+            $script:BackupDirLogged = $true
         }
-        Ensure-Directory -Path $backupDir
-        Copy-Item -Path $Path -Destination $backupPath -Force
+
+        if ($DryRun) {
+            Add-Log -Section Backups -Message "Would back up $Path to $backupPath"
+        } else {
+            if (-not (Test-Path $backupDir)) {
+                Ensure-Directory -Path $backupDir
+            }
+            Copy-Item -Path $Path -Destination $backupPath -Force
+            Add-Log -Section Backups -Message "Backed up $Path to $backupPath"
+        }
+
         return $backupPath
     }
 
@@ -101,11 +119,12 @@ function Install-RemoteFile {
     )
 
     if ($DryRun) {
-        Add-DryRunAction -Section Install -Message "Would download $Uri to $Destination"
+        Add-Log -Section Install -Message "Would download $Uri to $Destination"
         return
     }
 
     Invoke-WebRequest -Uri $Uri -OutFile $Destination
+    Add-Log -Section Install -Message "Downloaded $Uri to $Destination"
 }
 
 function Get-LoaderBlock {
@@ -125,24 +144,27 @@ function Ensure-ProfileLoader {
     Ensure-Directory -Path $powerShellRoot
     if (-not (Test-Path $PROFILE)) {
         if ($DryRun) {
-            Add-DryRunAction -Section Install -Message "Would create profile file: $PROFILE"
+            Add-Log -Section Install -Message "Would create profile file: $PROFILE"
         } else {
             New-Item -Path $PROFILE -ItemType File -Force | Out-Null
+            Add-Log -Section Install -Message "Created profile file: $PROFILE"
         }
     }
 
     $loaderBlock = Get-LoaderBlock -ScriptPath $ScriptPath
     $current = if (Test-Path $PROFILE) { Get-Content $PROFILE -Raw } else { '' }
     if ($current -match [regex]::Escape($loaderBlock.Trim())) {
+        Add-Log -Section Migration -Message "Loader already present in: $PROFILE"
         return $false
     }
 
     if ($DryRun) {
-        Add-DryRunAction -Section Migration -Message "Would append Pretty PowerShell loader to $PROFILE"
+        Add-Log -Section Migration -Message "Would append Pretty PowerShell loader to $PROFILE"
         return $true
     }
 
     Add-Content -Path $PROFILE -Value ("`r`n" + $loaderBlock)
+    Add-Log -Section Migration -Message "Appended Pretty PowerShell loader to $PROFILE"
     return $true
 }
 
@@ -179,26 +201,25 @@ function Migrate-LegacyProfile {
 
     $legacyProfileDetected = Test-LegacyManagedProfile
     if (-not $legacyProfileDetected -and -not $ForceMigration) {
+        Add-Log -Section Detect -Message 'Legacy repo-managed main profile not confidently detected.'
         if ($DryRun) {
-            Add-DryRunAction -Section Detect -Message 'Legacy repo-managed main profile not confidently detected.'
-            Add-DryRunAction -Section Migration -Message 'Would skip full migration and append loader instead.'
+            Add-Log -Section Migration -Message 'Would skip full migration and append loader instead.'
         } else {
-            Write-Warning 'Legacy repo-managed main profile not detected. Skipping migration and appending loader instead.'
+            Add-Log -Section Migration -Message 'Skipped full migration. Appending loader instead.'
+            Write-Warning 'Legacy repo-managed main profile not detected. Appending loader instead.'
         }
         $loaderAdded = Ensure-ProfileLoader -ScriptPath $ScriptPath
         return [pscustomobject]@{
-            Migrated = $false
-            LoaderAdded = $loaderAdded
-            MainProfileBackup = $null
-            CustomProfileBackup = $null
-            CustomProfileMerged = $false
+            Migrated             = $false
+            LoaderAdded          = $loaderAdded
+            MainProfileBackup    = $null
+            CustomProfileBackup  = $null
+            CustomProfileMerged  = $false
             CustomProfileWasPresent = $false
         }
     }
 
-    if ($DryRun) {
-        Add-DryRunAction -Section Detect -Message 'Legacy split-profile install detected. Migration plan ready.'
-    }
+    Add-Log -Section Detect -Message 'Legacy split-profile install detected.'
 
     $mainProfileBackup = Backup-File -Path $PROFILE
     $customProfileBackup = Backup-File -Path $customProfilePath
@@ -207,9 +228,10 @@ function Migrate-LegacyProfile {
     if ((Test-Path $customProfilePath) -and ((Resolve-Path $customProfilePath).Path -ne (Resolve-Path $PROFILE).Path)) {
         $customProfileContent = Get-Content $customProfilePath -Raw
         if ($DryRun) {
-            Add-DryRunAction -Section Migration -Message "Would remove migrated sidecar profile: $customProfilePath"
+            Add-Log -Section Migration -Message "Would remove migrated sidecar profile: $customProfilePath"
         } else {
             Remove-Item $customProfilePath -Force
+            Add-Log -Section Migration -Message "Removed migrated sidecar profile: $customProfilePath"
         }
     }
 
@@ -240,40 +262,59 @@ function Migrate-LegacyProfile {
     }
 
     if ($DryRun) {
-        Add-DryRunAction -Section Migration -Message "Would rewrite $PROFILE as loader-based migrated profile"
+        Add-Log -Section Migration -Message "Would rewrite $PROFILE as loader-based migrated profile"
     } else {
         Set-Content -Path $PROFILE -Value $newProfileContent -Encoding UTF8
+        Add-Log -Section Migration -Message "Rewrote $PROFILE as loader-based migrated profile"
+    }
+
+    $customMerged = [bool]($customProfileContent -and $customProfileContent.Trim())
+    if ($customMerged) {
+        if ($DryRun) {
+            Add-Log -Section Migration -Message 'Would merge custom profile.ps1 content into $PROFILE'
+        } else {
+            Add-Log -Section Migration -Message 'Merged custom profile.ps1 content into $PROFILE'
+        }
+    } elseif ($customProfileBackup) {
+        if ($DryRun) {
+            Add-Log -Section Migration -Message 'Custom profile.ps1 exists but is empty; backup kept, no content merged'
+        } else {
+            Add-Log -Section Migration -Message 'Custom profile.ps1 was empty; backup kept, no content merged'
+        }
     }
 
     return [pscustomobject]@{
-        Migrated = $true
-        LoaderAdded = $true
-        MainProfileBackup = $mainProfileBackup
-        CustomProfileBackup = $customProfileBackup
-        CustomProfileMerged = [bool]($customProfileContent -and $customProfileContent.Trim())
+        Migrated             = $true
+        LoaderAdded          = $true
+        MainProfileBackup    = $mainProfileBackup
+        CustomProfileBackup  = $customProfileBackup
+        CustomProfileMerged  = $customMerged
         CustomProfileWasPresent = [bool]$customProfileBackup
     }
 }
 
 function Ensure-StarshipConfig {
     if (Test-Path $starshipConfigPath) {
+        Add-Log -Section Install -Message "Starship config already exists: $starshipConfigPath"
         return $false
     }
 
     if ($DryRun) {
-        Add-DryRunAction -Section Install -Message "Would create directory: $starshipConfigDir"
-        Add-DryRunAction -Section Install -Message "Would initialize Starship preset catppuccin-powerline at $starshipConfigPath"
+        Add-Log -Section Install -Message "Would create directory: $starshipConfigDir"
+        Add-Log -Section Install -Message "Would initialize Starship preset catppuccin-powerline at $starshipConfigPath"
         return $true
     }
 
     Ensure-Directory -Path $starshipConfigDir
     $starshipExe = Get-Command starship -CommandType Application -ErrorAction SilentlyContinue
     if (-not $starshipExe) {
+        Add-Log -Section Install -Message 'Starship not found; skipped config bootstrap. Run: starship preset catppuccin-powerline -o ~/.config/starship.toml'
         Write-Warning 'Starship not found. Install it first, then run: starship preset catppuccin-powerline -o ~/.config/starship.toml'
         return $false
     }
 
     & $starshipExe.Source preset catppuccin-powerline -o $starshipConfigPath
+    Add-Log -Section Install -Message "Initialized Starship preset catppuccin-powerline at $starshipConfigPath"
     return $true
 }
 
@@ -283,25 +324,29 @@ function Install-Dependencies {
     }
 
     if ($DryRun) {
-        Add-DryRunAction -Section Dependencies -Message 'Would install Terminal-Icons module.'
+        Add-Log -Section Dependencies -Message 'Would install Terminal-Icons module.'
         if (Get-Command winget -ErrorAction SilentlyContinue) {
-            Add-DryRunAction -Section Dependencies -Message 'Would install Starship, zoxide, and JetBrainsMono Nerd Font via winget.'
+            Add-Log -Section Dependencies -Message 'Would install Starship, zoxide, and JetBrainsMono Nerd Font via winget.'
         } else {
-            Add-DryRunAction -Section Dependencies -Message 'Would require manual install of Starship, zoxide, and JetBrainsMono Nerd Font because winget was not found.'
+            Add-Log -Section Dependencies -Message 'Would require manual install of Starship, zoxide, and JetBrainsMono Nerd Font (winget not found).'
         }
         return
     }
 
     try {
         Install-Module -Name Terminal-Icons -Force -Repository PSGallery -Scope CurrentUser -ErrorAction Stop
+        Add-Log -Section Dependencies -Message 'Installed Terminal-Icons module.'
     } catch {
+        Add-Log -Section Dependencies -Message "Terminal-Icons install failed: $($_.Exception.Message)"
         Write-Warning "Terminal-Icons install failed: $($_.Exception.Message)"
     }
 
     if (Get-Command winget -ErrorAction SilentlyContinue) {
         winget install --id Starship.Starship --source winget --silent
         winget install ajeetdsouza.zoxide DEVCOM.JetBrainsMonoNerdFont --source winget --silent
+        Add-Log -Section Dependencies -Message 'Installed Starship, zoxide, and JetBrainsMono Nerd Font via winget.'
     } else {
+        Add-Log -Section Dependencies -Message 'winget not found. Install Starship, zoxide, and JetBrainsMono Nerd Font manually.'
         Write-Warning 'winget not found. Install Starship, zoxide, and JetBrainsMono Nerd Font manually if needed.'
     }
 }
@@ -323,60 +368,27 @@ $migrationResult = if ($MigrateLegacyProfile) {
     Migrate-LegacyProfile -ScriptPath $installPath -ForceMigration:$Force
 } else {
     [pscustomobject]@{
-        Migrated = $false
-        LoaderAdded = (Ensure-ProfileLoader -ScriptPath $installPath)
-        MainProfileBackup = $null
-        CustomProfileBackup = $null
-        CustomProfileMerged = $false
+        Migrated             = $false
+        LoaderAdded          = (Ensure-ProfileLoader -ScriptPath $installPath)
+        MainProfileBackup    = $null
+        CustomProfileBackup  = $null
+        CustomProfileMerged  = $false
         CustomProfileWasPresent = $false
     }
 }
 
-if ($DryRun) {
-    Add-DryRunAction -Section Result -Message "Standalone script path: $installPath"
-    Add-DryRunAction -Section Result -Message "Starship config path: $starshipConfigPath"
+Add-Log -Section Result -Message "Standalone script: $installPath"
+Add-Log -Section Result -Message "Starship config: $starshipConfigPath"
 
-    if ($migrationResult.Migrated) {
-        Add-DryRunAction -Section Result -Message "Would migrate legacy main profile: $PROFILE"
-        if ($migrationResult.MainProfileBackup) {
-            Add-DryRunAction -Section Result -Message "Would create main profile backup: $($migrationResult.MainProfileBackup)"
-        }
-        if ($migrationResult.CustomProfileMerged) {
-            Add-DryRunAction -Section Result -Message 'Would merge custom profile content into $PROFILE.'
-        } elseif ($migrationResult.CustomProfileWasPresent) {
-            Add-DryRunAction -Section Result -Message 'Custom profile exists but appears empty; backup would be kept and no custom content would be merged.'
-        }
-        if ($migrationResult.CustomProfileBackup) {
-            Add-DryRunAction -Section Result -Message "Would create custom profile backup: $($migrationResult.CustomProfileBackup)"
-        }
-    } elseif ($migrationResult.LoaderAdded) {
-        Add-DryRunAction -Section Result -Message "Would add loader to: $PROFILE"
-    } else {
-        Add-DryRunAction -Section Result -Message "Loader already present in: $PROFILE"
+if ($migrationResult.Migrated) {
+    if ($migrationResult.MainProfileBackup) {
+        Add-Log -Section Result -Message "Main profile backup: $($migrationResult.MainProfileBackup)"
     }
-
-    Write-DryRunSummary
-} else {
-    Write-Host 'Pretty PowerShell installed as standalone script.' -ForegroundColor Green
-    Write-Host "Script path: $installPath" -ForegroundColor Green
-    Write-Host "Starship config path: $starshipConfigPath" -ForegroundColor Green
-
-    if ($migrationResult.Migrated) {
-        Write-Host "Legacy main profile migrated: $PROFILE" -ForegroundColor Green
-        if ($migrationResult.MainProfileBackup) {
-            Write-Host "Main profile backup: $($migrationResult.MainProfileBackup)" -ForegroundColor Yellow
-        }
-        if ($migrationResult.CustomProfileMerged) {
-            Write-Host 'Custom profile content merged into migrated $PROFILE.' -ForegroundColor Green
-        } elseif ($migrationResult.CustomProfileWasPresent) {
-            Write-Warning 'Custom profile existed but was empty. Backup kept; no custom content was merged.'
-        }
-        if ($migrationResult.CustomProfileBackup) {
-            Write-Host "Custom profile backup: $($migrationResult.CustomProfileBackup)" -ForegroundColor Yellow
-        }
-    } elseif ($migrationResult.LoaderAdded) {
-        Write-Host "Loader added to: $PROFILE" -ForegroundColor Green
-    } else {
-        Write-Host "Loader already present in: $PROFILE" -ForegroundColor Yellow
+    if ($migrationResult.CustomProfileBackup) {
+        Add-Log -Section Result -Message "Custom profile backup: $($migrationResult.CustomProfileBackup)"
     }
+} elseif ($migrationResult.LoaderAdded) {
+    Add-Log -Section Result -Message "Loader added to: $PROFILE"
 }
+
+Write-InstallSummary
