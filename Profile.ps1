@@ -4,8 +4,8 @@ $script:PrettyPowerShellSourcePath = $PSCommandPath
 $script:PrettyPowerShellRoot = if ($PSCommandPath) { Split-Path -Parent $PSCommandPath } else { $null }
 $script:IsInteractiveShell = $Host.Name -eq 'ConsoleHost' -and -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected
 $script:PrettyPowerShellBackupRoot = if ($PROFILE) { Join-Path (Split-Path -Parent $PROFILE) 'Backups' } else { $null }
-$script:PrettyPowerShellStarshipConfigPath = Join-Path $HOME '.config/starship.toml'
-$script:PrettyPowerShellFastfetchConfigPath = Join-Path $HOME '.config/fastfetch/config.jsonc'
+$script:PrettyPowerShellStarshipConfigPath = Join-Path $env:USERPROFILE '.config/starship.toml'
+$script:PrettyPowerShellFastfetchConfigPath = Join-Path $env:USERPROFILE '.config/fastfetch/config.jsonc'
 
 function Get-PrettyPowerShellInstallPath {
     $script:PrettyPowerShellSourcePath

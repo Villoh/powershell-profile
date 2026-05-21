@@ -15,9 +15,10 @@ $installDir = switch ($InstallMode) {
     'PowerShellRoot' { $powerShellRoot }
 }
 $installPath = Join-Path $installDir 'PrettyPowerShell.ps1'
-$starshipConfigDir = Join-Path $HOME '.config'
+$userHome = $env:USERPROFILE
+$starshipConfigDir = Join-Path $userHome '.config'
 $starshipConfigPath = Join-Path $starshipConfigDir 'starship.toml'
-$fastfetchConfigDir = Join-Path $HOME '.config/fastfetch'
+$fastfetchConfigDir = Join-Path $userHome '.config/fastfetch'
 $fastfetchConfigPath = Join-Path $fastfetchConfigDir 'config.jsonc'
 $customProfilePath = Join-Path $powerShellRoot 'profile.ps1'
 $backupRootDir = Join-Path $powerShellRoot 'Backups'
