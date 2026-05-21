@@ -69,12 +69,16 @@ function Invoke-InteractiveMenu {
 
     function Render {
         param([int]$Sel)
-        [Console]::SetCursorPosition(0, [Console]::CursorTop - $optionCount)
+        $top = [Console]::CursorTop - $optionCount
         for ($i = 0; $i -lt $optionCount; $i++) {
+            [Console]::SetCursorPosition(0, $top + $i)
             $marker = if ($i -eq $Sel) { '▶' } else { ' ' }
             $color  = if ($i -eq $Sel) { 'Cyan' } else { 'Gray' }
-            Write-Host "  $marker $($Options[$i])" -ForegroundColor $color
+            $line = "  $marker $($Options[$i])"
+            Write-Host ($line.PadRight([Console]::WindowWidth - 1)) -ForegroundColor $color -NoNewline
         }
+        # Park cursor off-screen to prevent blink in menu area
+        [Console]::SetCursorPosition(0, $top + $optionCount)
     }
 
     Write-Host "$Question" -ForegroundColor White
@@ -84,13 +88,18 @@ function Invoke-InteractiveMenu {
         Write-Host "  $marker $($Options[$i])" -ForegroundColor $color
     }
 
-    while ($true) {
-        $key = [Console]::ReadKey($true)
-        switch ($key.Key) {
-            'UpArrow'   { if ($selected -gt 0) { $selected--; Render $selected } }
-            'DownArrow' { if ($selected -lt $optionCount - 1) { $selected++; Render $selected } }
-            'Enter'     { Write-Host ''; return $selected }
+    [Console]::CursorVisible = $false
+    try {
+        while ($true) {
+            $key = [Console]::ReadKey($true)
+            switch ($key.Key) {
+                'UpArrow'   { if ($selected -gt 0) { $selected--; Render $selected } }
+                'DownArrow' { if ($selected -lt $optionCount - 1) { $selected++; Render $selected } }
+                'Enter'     { Write-Host ''; return $selected }
+            }
         }
+    } finally {
+        [Console]::CursorVisible = $true
     }
 }
 
