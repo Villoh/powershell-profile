@@ -17,6 +17,8 @@ $installDir = switch ($InstallMode) {
 $installPath = Join-Path $installDir 'PrettyPowerShell.ps1'
 $themePath = Join-Path $installDir 'cobalt2.omp.json'
 $customProfilePath = Join-Path $powerShellRoot 'profile.ps1'
+$backupDir = Join-Path $powerShellRoot 'Backups'
+$script:DryRunBackupDirPlanned = $false
 $script:DryRunActions = [ordered]@{
     Detect = [System.Collections.Generic.List[string]]::new()
     Install = [System.Collections.Generic.List[string]]::new()
@@ -73,11 +75,17 @@ function Backup-File {
 
     if (Test-Path $Path) {
         $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-        $backupPath = "$Path.$timestamp.bak"
+        $fileName = Split-Path -Leaf $Path
+        $backupPath = Join-Path $backupDir "$fileName.$timestamp.bak"
         if ($DryRun) {
+            if (-not (Test-Path $backupDir) -and -not $script:DryRunBackupDirPlanned) {
+                Add-DryRunAction -Section Backups -Message "Would create backup folder: $backupDir"
+                $script:DryRunBackupDirPlanned = $true
+            }
             Add-DryRunAction -Section Backups -Message "Would back up $Path to $backupPath"
             return $backupPath
         }
+        Ensure-Directory -Path $backupDir
         Copy-Item -Path $Path -Destination $backupPath -Force
         return $backupPath
     }

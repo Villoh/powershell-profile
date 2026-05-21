@@ -37,7 +37,7 @@ If you used older layout with repo logic in `Microsoft.PowerShell_profile.ps1` a
 
 Migration will:
 
-- back up current `$PROFILE` with timestamped `.bak` files
+- back up current `$PROFILE` into `~/Documents/PowerShell/Backups/` with timestamped `.bak` files
 - detect old repo-managed main profile
 - rewrite `$PROFILE` as loader-based profile
 - merge old user-managed `profile.ps1` contents into new `$PROFILE`
@@ -80,9 +80,13 @@ Use `-Force` with `-MigrateLegacyProfile` if legacy detection is inconclusive.
 
 `Update-Profile` updates installed standalone script and adjacent theme file.
 
-Migration backups use timestamped filenames like:
+Migration backups are stored in:
 
-- `Microsoft.PowerShell_profile.ps1.20260521-143000.bak`
+- `~/Documents/PowerShell/Backups/`
+
+with timestamped filenames like:
+
+- `Backups/Microsoft.PowerShell_profile.ps1.20260521-143000.bak`
 
 ## Recommended extras
 
