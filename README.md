@@ -19,7 +19,7 @@ Original layout mixed repo-managed profile logic with user-owned PowerShell prof
 
 Default install downloads Pretty PowerShell to:
 
-- `~/Documents/PowerShell/Functions/PrettyPowerShell.ps1`
+- `~/Documents/PowerShell/PrettyPowerShell/PrettyPowerShell.ps1`
 
 and appends a loader to your main `$PROFILE`.
 
@@ -46,7 +46,7 @@ Migration will:
 
 ## Installer options
 
-### Install into PowerShell root
+### Install into PowerShell root instead of dedicated folder
 
 ```powershell
 & ([scriptblock]::Create((irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1))) -InstallMode PowerShellRoot

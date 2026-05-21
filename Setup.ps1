@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Functions', 'PowerShellRoot')]
-    [string]$InstallMode = 'Functions',
+    [ValidateSet('PrettyPowerShell', 'PowerShellRoot')]
+    [string]$InstallMode = 'PrettyPowerShell',
     [switch]$InstallDependencies,
     [switch]$MigrateLegacyProfile,
     [switch]$DryRun,
@@ -11,7 +11,7 @@ param(
 $repoBase = 'https://raw.githubusercontent.com/Villoh/powershell-profile/main'
 $powerShellRoot = Split-Path -Parent $PROFILE
 $installDir = switch ($InstallMode) {
-    'Functions' { Join-Path $powerShellRoot 'Functions' }
+    'PrettyPowerShell' { Join-Path $powerShellRoot 'PrettyPowerShell' }
     'PowerShellRoot' { $powerShellRoot }
 }
 $installPath = Join-Path $installDir 'PrettyPowerShell.ps1'

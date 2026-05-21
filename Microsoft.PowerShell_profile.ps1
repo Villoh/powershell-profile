@@ -3,7 +3,7 @@
 $candidatePaths = @(
     if ($PSScriptRoot) { Join-Path $PSScriptRoot 'Profile.ps1' }
     if ($PSScriptRoot) { Join-Path $PSScriptRoot 'PrettyPowerShell.ps1' }
-    if ($PROFILE) { Join-Path (Split-Path -Parent $PROFILE) 'Functions/PrettyPowerShell.ps1' }
+    if ($PROFILE) { Join-Path (Split-Path -Parent $PROFILE) 'PrettyPowerShell/PrettyPowerShell.ps1' }
     if ($PROFILE) { Join-Path (Split-Path -Parent $PROFILE) 'PrettyPowerShell.ps1' }
 ) | Where-Object { $_ } | Select-Object -Unique
 

@@ -7,11 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added dedicated `PrettyPowerShell/` install folder to avoid wildcard sourcing collisions with user-owned `Functions/` folder.
+
 ### Changed
 
 - Replaced Oh My Posh with Starship for prompt initialization.
 - Moved backup storage from alongside source files to `~/Documents/PowerShell/Backups/` with timestamped filenames.
 - Changed backup layout from flat timestamped filenames to dated subfolders `Backups/<yyyyMMdd-HHmmss>/<Files>` so all files from the same run are grouped together.
+- Changed default install location from `Functions/` to dedicated `PrettyPowerShell/` subfolder.
+- Removed cobalt2.omp.json theme download and all Oh My Posh theme references.
 - Added pre-update backup in `Update-Profile` and all refresh/force runs for rollback safety.
 - Unified install and migration output into grouped sectioned summary format matching dry-run output.
 
