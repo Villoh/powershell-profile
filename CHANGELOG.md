@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-05-21
+
 ### Added
 
 - Added dedicated `PrettyPowerShell/` install folder to avoid wildcard sourcing collisions with user-owned `Functions/` folder.
@@ -16,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `Backup-Directory` helper for recursive folder backups.
 - Added `fastfetch/config.jsonc` and `fastfetch/ascii.txt` to repo as default fastfetch config bootstrapped when user has no existing config.
 - Added `Ensure-FastfetchConfig` to installer mirroring `Ensure-StarshipConfig` behavior — installs default config if missing, skips if already present.
+- Added collapsible commit history and contributors sections to GitHub release body, generated dynamically since last tag.
 
 ### Changed
 
@@ -30,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fixed dry-run output to correctly show hypothetical wording for all actions.
+
+[1.0.1]: https://github.com/Villoh/powershell-profile/compare/v1.0.0...v1.0.1
 
 ## [1.0.0] - 2026-05-21
 

@@ -25,47 +25,117 @@ jobs:
 
       - name: Resolve release from changelog
         id: release_info
-        shell: pwsh
+        shell: bash
         run: |
-          ./.github/scripts/get-release-from-changelog.ps1 `
-            -ChangelogPath CHANGELOG.md `
-            -ReleaseNotesPath release-notes.md `
-            -GitHubOutputPath $env:GITHUB_OUTPUT
+          HEADING=$(grep -m1 -E '^\#\# \[[0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md)
+          if [ -z "$HEADING" ]; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "No released version found in changelog."
+            exit 0
+          fi
+
+          VERSION=$(echo "$HEADING" | sed -E 's/## \[([^]]+)\].*/\1/')
+          DATE=$(echo "$HEADING" | sed -E 's/.*\] - ([0-9]{4}-[0-9]{2}-[0-9]{2}).*/\1/')
+          TAG="v$VERSION"
+          echo "$VERSION" | grep -q '-' && PRERELEASE=true || PRERELEASE=false
+
+          LINE1=$(grep -nm1 "## \[$VERSION\]" CHANGELOG.md | cut -d: -f1)
+          LINE2=$(awk "NR>$LINE1 && /^\#\# \[/{print NR; exit}" CHANGELOG.md)
+          if [ -n "$LINE2" ]; then
+            BODY=$(sed -n "$((LINE1+1)),$((LINE2-1))p" CHANGELOG.md | sed '/^[[:space:]]*$/d' | head -c 125000)
+          else
+            BODY=$(sed -n "$((LINE1+1)),\$p" CHANGELOG.md | sed '/^[[:space:]]*$/d' | head -c 125000)
+          fi
+
+          if echo "$DATE" | grep -qE '^[0-9]{4}'; then
+            printf '## [%s] - %s\n\n%s\n' "$VERSION" "$DATE" "$BODY" > release-notes.md
+          else
+            printf '## [%s]\n\n%s\n' "$VERSION" "$BODY" > release-notes.md
+          fi
+
+          echo "release=true"       >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION"   >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG"           >> "$GITHUB_OUTPUT"
+          echo "body_path=release-notes.md" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$PRERELEASE"     >> "$GITHUB_OUTPUT"
+          echo "Prepared release metadata for $TAG"
 
       - name: Stop when changelog has no released version
         if: steps.release_info.outputs.release != 'true'
-        shell: pwsh
-        run: |
-          Write-Host 'No released changelog version ready for publish. Skipping.'
+        shell: bash
+        run: echo 'No released changelog version ready for publish. Skipping.'
 
       - name: Check whether tag already exists
         if: steps.release_info.outputs.release == 'true'
         id: tag_check
-        shell: pwsh
+        shell: bash
         run: |
           git fetch --tags --force
-          $tag = '${{ steps.release_info.outputs.tag }}'
-          $tagExists = if (git tag -l $tag) { 'true' } else { 'false' }
-          "tag_exists=$tagExists" | Add-Content -LiteralPath $env:GITHUB_OUTPUT
-
-          if ($tagExists -eq 'true') {
-            Write-Host "Tag $tag already exists. Skipping release creation."
-          } else {
-            Write-Host "Tag $tag does not exist yet."
-          }
+          TAG="${{ steps.release_info.outputs.tag }}"
+          if git tag -l "$TAG" | grep -q "$TAG"; then
+            echo "tag_exists=true" >> "$GITHUB_OUTPUT"
+            echo "Tag $TAG already exists. Skipping release creation."
+          else
+            echo "tag_exists=false" >> "$GITHUB_OUTPUT"
+            echo "Tag $TAG does not exist yet."
+          fi
 
       - name: Create and push tag
-        if: steps.release_info.outputs.release == 'true' && steps.tag_check.outputs.tag_exists != 'true'
-        shell: pwsh
+        if: >
+          steps.release_info.outputs.release == 'true' &&
+          steps.tag_check.outputs.tag_exists != 'true'
+        shell: bash
         run: |
-          $tag = '${{ steps.release_info.outputs.tag }}'
+          TAG="${{ steps.release_info.outputs.tag }}"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git tag -a $tag ${{ github.sha }} -m "Release $tag"
-          git push origin $tag
+          git tag -a "$TAG" ${{ github.sha }} -m "Release $TAG"
+          git push origin "$TAG"
+
+      - name: Build release extras
+        if: >
+          steps.release_info.outputs.release == 'true' &&
+          steps.tag_check.outputs.tag_exists != 'true'
+        shell: bash
+        run: |
+          PREV_TAG=$(git tag --sort=-version:refname | sed -n '2p')
+          RANGE=${PREV_TAG:+"$PREV_TAG..HEAD"}
+          RANGE=${RANGE:-HEAD}
+
+          # Commit history
+          COMMITS=$(git log $RANGE --pretty=format:'- `%h` %s')
+
+          # Contributors via GitHub API (verified logins, no bots)
+          LOGINS=$(git log $RANGE --pretty=format:'%H' | while read -r sha; do
+            curl -s "https://api.github.com/repos/${{ github.repository }}/commits/$sha" \
+              -H "Authorization: Bearer ${{ github.token }}" \
+              | grep -oP '(?<="login": ")[^"]+' | head -1
+          done | sort -u | grep -v '\[bot\]' | grep -v '^$')
+
+          AVATARS=$(for login in $LOGINS; do
+            printf '<a href="https://github.com/%s"><img src="https://wsrv.nl/?url=github.com/%s.png&w=32&h=32&mask=circle" width="32" height="32" alt="@%s" /></a>&nbsp;' \
+              "$login" "$login" "$login"
+          done)
+
+          COMPARE_URL="https://github.com/${{ github.repository }}/compare/${PREV_TAG}...HEAD"
+
+          printf '\n## Contributors\n\n%s\n' "$AVATARS" >> release-notes.md
+
+          printf '\n<details open>\n<summary><b>📜 Commit history (%s &rarr; %s)</b></summary>\n\n' \
+            "${PREV_TAG:-initial}" "${{ steps.release_info.outputs.tag }}" >> release-notes.md
+
+          git log --reverse $RANGE \
+            --format="- [\`%h\`](https://github.com/${{ github.repository }}/commit/%H) %s" \
+            >> release-notes.md
+
+          printf '\n</details>\n\n**Full Changelog**: %s\n' "$COMPARE_URL" >> release-notes.md
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Create GitHub release
-        if: steps.release_info.outputs.release == 'true' && steps.tag_check.outputs.tag_exists != 'true'
+        if: >
+          steps.release_info.outputs.release == 'true' &&
+          steps.tag_check.outputs.tag_exists != 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release_info.outputs.tag }}

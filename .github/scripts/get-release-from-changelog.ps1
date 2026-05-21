@@ -39,7 +39,9 @@ $releaseDate = $match.Groups['date'].Value
 $tag = "v$version"
 $bodyStart = $match.Index + $match.Length
 $bodyEnd = if ($matches.Count -gt 1) { $matches[1].Index } else { $content.Length }
-$body = $content.Substring($bodyStart, $bodyEnd - $bodyStart).Trim()
+$body = $content.Substring($bodyStart, $bodyEnd - $bodyStart) -replace '(?m)^\[.*\]:.*$', '' -replace '(?:
+?
+){3,}', "`n`n" | ForEach-Object { $_.Trim() }
 $heading = if ($releaseDate) {
     "## [$version] - $releaseDate"
 } else {
