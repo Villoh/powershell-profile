@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Replaced all installer flags (`-InstallMode`, `-InstallDependencies`, `-MigrateLegacyProfile`) with interactive guided setup flow.
+- Installer now prompts for install location, legacy migration, Starship bootstrap, Fastfetch bootstrap, and dependency install.
+- `-DryRun` and `-Force` remain as non-interactive overrides.
+- `$HOME` replaced with `$env:USERPROFILE` in `Setup.ps1` and `Profile.ps1` to fix path casing on Windows.
+- Fixed Fastfetch config detection using correct `$env:USERPROFILE` path.
+- Added manual version input to release workflow `workflow_dispatch`.
+- Updated README to reflect interactive installer.
+
 ## [1.0.1] - 2026-05-21
 
 ### Added

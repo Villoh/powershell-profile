@@ -11,67 +11,25 @@ Original layout mixed repo-managed profile logic with user-owned PowerShell prof
 ### Current architecture
 
 - `Profile.ps1` → canonical repo-managed script
-- `Setup.ps1` → installer and migration entrypoint
+- `Setup.ps1` → interactive installer and migration entrypoint
 - `Microsoft.PowerShell_profile.ps1` → compatibility loader
 - `$PROFILE` → user-owned startup file that dot-sources Pretty PowerShell
 
 ## Install
 
-Default install downloads Pretty PowerShell to:
-
-- `~/Documents/PowerShell/PrettyPowerShell/PrettyPowerShell.ps1`
-
-and appends a loader to your main `$PROFILE`.
-
-Prompt setup uses Starship. If `~/.config/starship.toml` does not exist yet, installer bootstraps it with Starship's recommended Catppuccin Powerline preset.
-
 ```powershell
 irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1 | iex
 ```
 
-## Migration from old split-profile installs
+Installer is interactive. It guides you through:
 
-If you used older layout with repo logic in `Microsoft.PowerShell_profile.ps1` and customizations in `profile.ps1`, use migration mode:
+1. Install location
+2. Legacy profile migration (auto-detected)
+3. Starship config bootstrap (opt-in)
+4. Fastfetch config bootstrap (opt-in)
+5. Dependency installation (opt-in)
 
-```powershell
-& ([scriptblock]::Create((irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1))) -MigrateLegacyProfile
-```
-
-Migration will:
-
-- back up current `$PROFILE` into `~/Documents/PowerShell/Backups/` with timestamped `.bak` files
-- detect old repo-managed main profile
-- rewrite `$PROFILE` as loader-based profile
-- merge old user-managed `profile.ps1` contents into new `$PROFILE`
-
-## Installer options
-
-### Install into PowerShell root instead of dedicated folder
-
-```powershell
-& ([scriptblock]::Create((irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1))) -InstallMode PowerShellRoot
-```
-
-### Install dependencies
-
-```powershell
-& ([scriptblock]::Create((irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1))) -InstallDependencies
-```
-
-This installs:
-
-- `Starship`
-- `zoxide`
-- `JetBrainsMono Nerd Font`
-- `Terminal-Icons`
-
-### Force refresh existing install
-
-```powershell
-& ([scriptblock]::Create((irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1))) -Force
-```
-
-Existing installed script and Starship config are backed up before refresh when present. Use `-Force` with `-MigrateLegacyProfile` if legacy detection is inconclusive.
+## Flags
 
 ### Preview install without changes
 
@@ -79,44 +37,61 @@ Existing installed script and Starship config are backed up before refresh when 
 & ([scriptblock]::Create((irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1))) -DryRun
 ```
 
-### Preview migration without changes
+### Force refresh without prompts
 
 ```powershell
-& ([scriptblock]::Create((irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1))) -MigrateLegacyProfile -DryRun
+& ([scriptblock]::Create((irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1))) -Force
 ```
+
+Skips interactive prompts and applies all defaults. Useful for scripted re-installs.
+
+## Backups
+
+All overwritten files are backed up to:
+
+```
+~/Documents/PowerShell/Backups/<yyyyMMdd-HHmmss>/
+```
+
+Each run creates its own dated subfolder. Includes:
+
+- `PrettyPowerShell.ps1`
+- `starship.toml`
+- `fastfetch/` folder
+- `Microsoft.PowerShell_profile.ps1` (migration only)
+- `profile.ps1` (migration only)
 
 ## Update behavior
 
-`Update-Profile` updates installed standalone script.
+`Update-Profile` updates installed standalone script. Backs up existing script and Starship config before overwrite.
 
-Before overwrite, `Update-Profile`, reinstall, refresh, and `-Force` runs back up existing installed files into `~/Documents/PowerShell/Backups/`.
+## Prompt
 
-When present, Starship config is backed up there too.
+Uses Starship. Default config based on Catppuccin Powerline preset.
 
-Migration backups are stored in:
+Customize at `~/.config/starship.toml`.
 
-- `~/Documents/PowerShell/Backups/`
+## Startup
 
-with timestamped filenames like:
+On interactive shell:
 
-- `Backups/Microsoft.PowerShell_profile.ps1.20260521-143000.bak`
-
-## Prompt styling
-
-Pretty PowerShell now uses Starship instead of Oh My Posh.
-
-Recommended baseline:
-
-- install Starship
-- use preset command from Starship docs:
-  - `starship preset catppuccin-powerline -o ~/.config/starship.toml`
-- customize `C:\Users\mikel\.config\starship.toml` to taste
+1. Starship prompt initializes
+2. Fastfetch runs with config at `~/.config/fastfetch/config.jsonc`
+3. `Show-Help` hint prints
 
 ## Recommended extras
 
 - `JetBrainsMono Nerd Font`
+- `Starship`
+- `fastfetch`
 - `zoxide`
 - `Terminal-Icons`
+
+Install all via installer dependency option or manually:
+
+```powershell
+winget install Starship.Starship fastfetch-cli.fastfetch ajeetdsouza.zoxide DEVCOM.JetBrainsMonoNerdFont
+```
 
 ## Support
 
