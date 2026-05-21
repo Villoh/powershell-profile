@@ -277,11 +277,36 @@ function Ensure-ProfileLoader {
         }
     }
 
-    $loaderBlock = Get-LoaderBlock -ScriptPath $ScriptPath
+    $loaderBlock = (Get-LoaderBlock -ScriptPath $ScriptPath).TrimEnd()
+    $loaderPattern = "(?ms)^# Pretty PowerShell loader\r?\nif \(Test-Path '[^']+'\) \{\r?\n    \. '[^']+'\r?\n\}\r?\n?"
     $current = if (Test-Path $PROFILE) { Get-Content $PROFILE -Raw } else { '' }
-    if ($current -match [regex]::Escape($loaderBlock.Trim())) {
-        Add-Log -Section Migration -Message "Loader already present in: $PROFILE"
-        return $false
+    $matches = [regex]::Matches($current, $loaderPattern)
+
+    if ($matches.Count -gt 0) {
+        $firstMatch = $matches[0]
+        $prefix = $current.Substring(0, $firstMatch.Index)
+        $suffix = $current.Substring($firstMatch.Index + $firstMatch.Length)
+        $suffix = [regex]::Replace($suffix, $loaderPattern, '')
+        $suffix = $suffix.TrimStart("`r", "`n")
+        $normalized = if ($suffix) {
+            $prefix + $loaderBlock + "`r`n`r`n" + $suffix
+        } else {
+            $prefix + $loaderBlock + "`r`n"
+        }
+
+        if ($current -eq $normalized) {
+            Add-Log -Section Migration -Message "Loader already present in: $PROFILE"
+            return $false
+        }
+
+        if ($DryRun) {
+            Add-Log -Section Migration -Message "Would normalize Pretty PowerShell loader entries in $PROFILE"
+            return $true
+        }
+
+        Write-Utf8File -Path $PROFILE -Content $normalized
+        Add-Log -Section Migration -Message "Normalized Pretty PowerShell loader entries in $PROFILE"
+        return $true
     }
 
     if ($DryRun) {
@@ -289,7 +314,7 @@ function Ensure-ProfileLoader {
         return $true
     }
 
-    Add-Content -Path $PROFILE -Value ("`r`n" + $loaderBlock)
+    Add-Content -Path $PROFILE -Value ("`r`n" + $loaderBlock + "`r`n")
     Add-Log -Section Migration -Message "Appended Pretty PowerShell loader to $PROFILE"
     return $true
 }
