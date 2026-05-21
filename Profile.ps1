@@ -5,6 +5,7 @@ $script:PrettyPowerShellRoot = if ($PSCommandPath) { Split-Path -Parent $PSComma
 $script:IsInteractiveShell = $Host.Name -eq 'ConsoleHost' -and -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected
 $script:PrettyPowerShellBackupRoot = if ($PROFILE) { Join-Path (Split-Path -Parent $PROFILE) 'Backups' } else { $null }
 $script:PrettyPowerShellStarshipConfigPath = Join-Path $HOME '.config/starship.toml'
+$script:PrettyPowerShellFastfetchConfigPath = Join-Path $HOME '.config/fastfetch/config.jsonc'
 
 function Get-PrettyPowerShellInstallPath {
     $script:PrettyPowerShellSourcePath
@@ -320,5 +321,11 @@ Initialize-PrettyModules
 Initialize-PrettyReadLine
 
 if ($script:IsInteractiveShell) {
+    $fastfetchExe = Get-Command fastfetch -CommandType Application -ErrorAction Ignore |
+        Select-Object -First 1 -ExpandProperty Source
+    if ($fastfetchExe -and (Test-Path $script:PrettyPowerShellFastfetchConfigPath)) {
+        & $fastfetchExe --config $script:PrettyPowerShellFastfetchConfigPath
+    }
+
     Write-Host "Use 'Show-Help' to list all available functions" -ForegroundColor Yellow
 }

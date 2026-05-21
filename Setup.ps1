@@ -17,6 +17,8 @@ $installDir = switch ($InstallMode) {
 $installPath = Join-Path $installDir 'PrettyPowerShell.ps1'
 $starshipConfigDir = Join-Path $HOME '.config'
 $starshipConfigPath = Join-Path $starshipConfigDir 'starship.toml'
+$fastfetchConfigDir = Join-Path $HOME '.config/fastfetch'
+$fastfetchConfigPath = Join-Path $fastfetchConfigDir 'config.jsonc'
 $customProfilePath = Join-Path $powerShellRoot 'profile.ps1'
 $backupRootDir = Join-Path $powerShellRoot 'Backups'
 $script:BackupTimestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
@@ -80,34 +82,60 @@ function Ensure-Directory {
     }
 }
 
+function Ensure-BackupDir {
+    if (-not $script:BackupDirLogged) {
+        if ($DryRun) {
+            Add-Log -Section Backups -Message "Would create backup folder: $backupDir"
+        } else {
+            Ensure-Directory -Path $backupDir
+            Add-Log -Section Backups -Message "Created backup folder: $backupDir"
+        }
+        $script:BackupDirLogged = $true
+    }
+}
+
 function Backup-File {
     param([string]$Path)
 
-    if (Test-Path $Path) {
-        $fileName = Split-Path -Leaf $Path
-        $backupPath = Join-Path $backupDir $fileName
-
-        if (-not $script:BackupDirLogged) {
-            if ($DryRun) {
-                Add-Log -Section Backups -Message "Would create backup folder: $backupDir"
-            } else {
-                Ensure-Directory -Path $backupDir
-                Add-Log -Section Backups -Message "Created backup folder: $backupDir"
-            }
-            $script:BackupDirLogged = $true
-        }
-
-        if ($DryRun) {
-            Add-Log -Section Backups -Message "Would back up $Path to $backupPath"
-        } else {
-            Copy-Item -Path $Path -Destination $backupPath -Force
-            Add-Log -Section Backups -Message "Backed up $Path to $backupPath"
-        }
-
-        return $backupPath
+    if (-not (Test-Path $Path)) {
+        return $null
     }
 
-    return $null
+    $fileName = Split-Path -Leaf $Path
+    $backupPath = Join-Path $backupDir $fileName
+    Ensure-BackupDir
+
+    if ($DryRun) {
+        Add-Log -Section Backups -Message "Would back up $Path to $backupPath"
+    } else {
+        Copy-Item -Path $Path -Destination $backupPath -Force
+        Add-Log -Section Backups -Message "Backed up $Path to $backupPath"
+    }
+
+    return $backupPath
+}
+
+function Backup-Directory {
+    param(
+        [string]$Path,
+        [string]$Name
+    )
+
+    if (-not (Test-Path $Path)) {
+        return $null
+    }
+
+    $backupPath = Join-Path $backupDir $Name
+    Ensure-BackupDir
+
+    if ($DryRun) {
+        Add-Log -Section Backups -Message "Would back up folder $Path to $backupPath"
+    } else {
+        Copy-Item -Path $Path -Destination $backupPath -Recurse -Force
+        Add-Log -Section Backups -Message "Backed up folder $Path to $backupPath"
+    }
+
+    return $backupPath
 }
 
 function Install-RemoteFile {
@@ -324,9 +352,9 @@ function Install-Dependencies {
     if ($DryRun) {
         Add-Log -Section Dependencies -Message 'Would install Terminal-Icons module.'
         if (Get-Command winget -ErrorAction SilentlyContinue) {
-            Add-Log -Section Dependencies -Message 'Would install Starship, zoxide, and JetBrainsMono Nerd Font via winget.'
+            Add-Log -Section Dependencies -Message 'Would install Starship, fastfetch, zoxide, and JetBrainsMono Nerd Font via winget.'
         } else {
-            Add-Log -Section Dependencies -Message 'Would require manual install of Starship, zoxide, and JetBrainsMono Nerd Font (winget not found).'
+            Add-Log -Section Dependencies -Message 'Would require manual install of Starship, fastfetch, zoxide, and JetBrainsMono Nerd Font (winget not found).'
         }
         return
     }
@@ -341,11 +369,12 @@ function Install-Dependencies {
 
     if (Get-Command winget -ErrorAction SilentlyContinue) {
         winget install --id Starship.Starship --source winget --silent
+        winget install --id fastfetch-cli.fastfetch --source winget --silent
         winget install ajeetdsouza.zoxide DEVCOM.JetBrainsMonoNerdFont --source winget --silent
-        Add-Log -Section Dependencies -Message 'Installed Starship, zoxide, and JetBrainsMono Nerd Font via winget.'
+        Add-Log -Section Dependencies -Message 'Installed Starship, fastfetch, zoxide, and JetBrainsMono Nerd Font via winget.'
     } else {
-        Add-Log -Section Dependencies -Message 'winget not found. Install Starship, zoxide, and JetBrainsMono Nerd Font manually.'
-        Write-Warning 'winget not found. Install Starship, zoxide, and JetBrainsMono Nerd Font manually if needed.'
+        Add-Log -Section Dependencies -Message 'winget not found. Install Starship, fastfetch, zoxide, and JetBrainsMono Nerd Font manually.'
+        Write-Warning 'winget not found. Install Starship, fastfetch, zoxide, and JetBrainsMono Nerd Font manually if needed.'
     }
 }
 
@@ -356,6 +385,9 @@ if (Test-Path $installPath) {
 }
 if (Test-Path $starshipConfigPath) {
     Backup-File -Path $starshipConfigPath | Out-Null
+}
+if (Test-Path $fastfetchConfigDir) {
+    Backup-Directory -Path $fastfetchConfigDir -Name 'fastfetch' | Out-Null
 }
 
 Install-RemoteFile -Uri "$repoBase/Profile.ps1" -Destination $installPath

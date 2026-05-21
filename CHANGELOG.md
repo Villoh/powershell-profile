@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added dedicated `PrettyPowerShell/` install folder to avoid wildcard sourcing collisions with user-owned `Functions/` folder.
+- Added fastfetch integration on shell startup using custom config at `~/.config/fastfetch/config.jsonc` when present.
+- Added fastfetch folder backup (`config.jsonc` + `ascii.txt`) into dated `Backups/<timestamp>/fastfetch/` subfolder.
+- Added `fastfetch-cli.fastfetch` to `-InstallDependencies` winget install list.
+- Added `Backup-Directory` helper for recursive folder backups.
 
 ### Changed
 
