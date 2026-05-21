@@ -17,6 +17,7 @@ $customProfilePath = Join-Path $powerShellRoot 'profile.ps1'
 $backupRootDir = Join-Path $powerShellRoot 'Backups'
 $script:BackupTimestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $script:BackupDirLogged = $false
+$script:UseAsciiUi = $PSVersionTable.PSEdition -ne 'Core'
 $script:InstallLog = [ordered]@{
     Detect       = [System.Collections.Generic.List[string]]::new()
     Install      = [System.Collections.Generic.List[string]]::new()
@@ -34,6 +35,16 @@ function Add-Log {
     )
 
     $script:InstallLog[$Section].Add($Message)
+}
+
+function Get-UiRule {
+    if ($script:UseAsciiUi) { return '----------------------------------------------------' }
+    return '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
+}
+
+function Get-UiPointer {
+    if ($script:UseAsciiUi) { return '>' }
+    return '▶'
 }
 
 function Write-InstallSummary {
@@ -74,7 +85,7 @@ function Invoke-InteractiveMenu {
         $top = [Console]::CursorTop - $optionCount
         for ($i = 0; $i -lt $optionCount; $i++) {
             [Console]::SetCursorPosition(0, $top + $i)
-            $marker = if ($i -eq $Sel) { '▶' } else { ' ' }
+            $marker = if ($i -eq $Sel) { (Get-UiPointer) } else { ' ' }
             $color  = if ($i -eq $Sel) { 'Cyan' } else { 'Gray' }
             $line = "  $marker $($Options[$i])"
             Write-Host ($line.PadRight([Console]::WindowWidth - 1)) -ForegroundColor $color -NoNewline
@@ -85,7 +96,7 @@ function Invoke-InteractiveMenu {
 
     Write-Host "$Question" -ForegroundColor White
     for ($i = 0; $i -lt $optionCount; $i++) {
-        $marker = if ($i -eq $selected) { '▶' } else { ' ' }
+        $marker = if ($i -eq $selected) { (Get-UiPointer) } else { ' ' }
         $color  = if ($i -eq $selected) { 'Cyan' } else { 'Gray' }
         Write-Host "  $marker $($Options[$i])" -ForegroundColor $color
     }
@@ -421,9 +432,10 @@ $legacyLabel = if ($isLegacy) { ' (legacy profile detected)' } else { '' }
 
 if (-not $DryRun -and -not $Force) {
     Write-Host ''
-    Write-Host '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━' -ForegroundColor Cyan
+    $rule = Get-UiRule
+    Write-Host $rule -ForegroundColor Cyan
     Write-Host '  Pretty PowerShell Setup' -ForegroundColor White
-    Write-Host '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━' -ForegroundColor Cyan
+    Write-Host $rule -ForegroundColor Cyan
     Write-Host ''
     Write-Host "OS: $osName" -ForegroundColor DarkGray
     Write-Host "PowerShell: $shellName $($PSVersionTable.PSVersion)" -ForegroundColor DarkGray
@@ -454,9 +466,9 @@ if (-not $DryRun -and -not $Force) {
     $doDeps      = Invoke-InteractiveBool 'Install dependencies (Starship, fastfetch, zoxide, JetBrainsMono)?' $false
 
     Write-Host ''
-    Write-Host '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━' -ForegroundColor Cyan
+    Write-Host $rule -ForegroundColor Cyan
     Write-Host '  Press Enter to install or Ctrl+C to cancel.' -ForegroundColor White
-    Write-Host '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━' -ForegroundColor Cyan
+    Write-Host $rule -ForegroundColor Cyan
     Read-Host | Out-Null
     Write-Host ''
 } else {
