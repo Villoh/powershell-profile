@@ -74,11 +74,7 @@ jobs:
       - name: Run PSScriptAnalyzer
         shell: pwsh
         run: |
-          $scripts = Get-ChildItem -Path . -Recurse -File -Filter *.ps1 |
-            Sort-Object FullName |
-            Select-Object -ExpandProperty FullName
-
-          $issues = Invoke-ScriptAnalyzer -Path $scripts -Recurse
+          $issues = Invoke-ScriptAnalyzer -Path . -Recurse
           if (-not $issues) {
             Write-Host 'PSScriptAnalyzer found no issues.'
             exit 0
