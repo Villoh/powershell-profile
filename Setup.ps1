@@ -275,11 +275,9 @@ function Test-LegacyManagedProfile {
 
     $profileContent = Get-Content $PROFILE -Raw
     $legacySignals = @(
-        "Chris Titus Tech's PowerShell profile",
-        'function Update-Profile',
-        'function Show-Help',
-        'oh-my-posh init pwsh',
-        'zoxide init --cmd z powershell'
+        "### Chris Titus Tech's PowerShell profile",
+        'https://github.com/ChrisTitusTech/powershell-profile.git',
+        '$repo_root = "https://raw.githubusercontent.com/ChrisTitusTech"'
     )
 
     foreach ($signal in $legacySignals) {
