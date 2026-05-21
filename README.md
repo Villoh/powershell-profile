@@ -1,104 +1,99 @@
 # 🎨 Pretty PowerShell
 
-Clean, modern PowerShell setup. Now treated as **standalone script**, not replacement for user's main `$PROFILE`.
+Pretty PowerShell is a standalone PowerShell customization script focused on safer installation, easier updates, and clearer ownership boundaries.
 
-## Core direction
+> This repository is a fork of `ChrisTitusTech/powershell-profile`, refactored around a standalone-script architecture.
 
-Repo now fits better as:
+## Why this fork exists
 
-- standalone script in `~/Documents/PowerShell/Functions`
-- or standalone script in `~/Documents/PowerShell`
-- auto-linked from your PowerShell profile by installer
+Original layout mixed repo-managed profile logic with user-owned PowerShell profile files. This fork moves repo code into a standalone script and keeps the user's main `$PROFILE` as a thin loader.
 
-Installer adds dot-source loader to your existing `$PROFILE` so script loads on shell startup.
+### Current architecture
 
-## Quick install
+- `Profile.ps1` → canonical repo-managed script
+- `Setup.ps1` → installer and migration entrypoint
+- `Microsoft.PowerShell_profile.ps1` → compatibility loader
+- `$PROFILE` → user-owned startup file that dot-sources Pretty PowerShell
 
-Install standalone script to `~/Documents/PowerShell/Functions/PrettyPowerShell.ps1`:
+## Install
+
+Default install downloads Pretty PowerShell to:
+
+- `~/Documents/PowerShell/Functions/PrettyPowerShell.ps1`
+
+and appends a loader to your main `$PROFILE`.
 
 ```powershell
 irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1 | iex
 ```
 
-Installer also appends loader to `$PROFILE`, so no manual dot-sourcing needed.
+## Migration from old split-profile installs
 
-## Advanced install options
-
-Migrate old split-profile install into new layout:
+If you used older layout with repo logic in `Microsoft.PowerShell_profile.ps1` and customizations in `profile.ps1`, use migration mode:
 
 ```powershell
-$script = irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1
-& ([scriptblock]::Create($script)) -MigrateLegacyProfile
+& ([scriptblock]::Create((irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1))) -MigrateLegacyProfile
 ```
 
-This will:
+Migration will:
 
 - back up current `$PROFILE` with timestamped `.bak` files
 - detect old repo-managed main profile
-- replace it with loader-based profile
-- merge old user-managed `profile.ps1` content into new `$PROFILE`
+- rewrite `$PROFILE` as loader-based profile
+- merge old user-managed `profile.ps1` contents into new `$PROFILE`
 
-Install into PowerShell root instead of `Functions`:
+## Installer options
 
-```powershell
-$script = irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1
-& ([scriptblock]::Create($script)) -InstallMode PowerShellRoot
-```
-
-Install dependencies too:
+### Install into PowerShell root
 
 ```powershell
-$script = irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1
-& ([scriptblock]::Create($script)) -InstallDependencies
+& ([scriptblock]::Create((irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1))) -InstallMode PowerShellRoot
 ```
 
-Force refresh existing standalone install:
+### Install dependencies
 
 ```powershell
-$script = irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1
-& ([scriptblock]::Create($script)) -Force
+& ([scriptblock]::Create((irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1))) -InstallDependencies
 ```
 
-Use `-Force` with `-MigrateLegacyProfile` to migrate even if legacy profile detection is inconclusive.
-
-Preview installer actions without changing files:
+### Force refresh existing install
 
 ```powershell
-$script = irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1
-& ([scriptblock]::Create($script)) -DryRun
+& ([scriptblock]::Create((irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1))) -Force
 ```
 
-Preview migration plan without changing files:
+Use `-Force` with `-MigrateLegacyProfile` if legacy detection is inconclusive.
+
+### Preview install without changes
 
 ```powershell
-$script = irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1
-& ([scriptblock]::Create($script)) -MigrateLegacyProfile -DryRun
+& ([scriptblock]::Create((irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1))) -DryRun
 ```
 
-## Files
+### Preview migration without changes
 
-- `Profile.ps1` → canonical standalone script
-- `Microsoft.PowerShell_profile.ps1` → compatibility loader
-- `Setup.ps1` → installer for standalone layout
+```powershell
+& ([scriptblock]::Create((irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1))) -MigrateLegacyProfile -DryRun
+```
 
 ## Update behavior
 
-`Update-Profile` updates installed standalone script and adjacent theme file. Installer wires script into `$PROFILE` automatically, and `-MigrateLegacyProfile` can convert old split-profile installs into loader-based layout.
+`Update-Profile` updates installed standalone script and adjacent theme file.
 
-Migration backups use timestamped filenames like `Microsoft.PowerShell_profile.ps1.20260521-143000.bak`.
+Migration backups use timestamped filenames like:
 
-## After install
+- `Microsoft.PowerShell_profile.ps1.20260521-143000.bak`
 
-If you use prompt/theme extras, recommended:
+## Recommended extras
 
 - `JetBrainsMono Nerd Font`
 - `oh-my-posh`
 - `zoxide`
 - `Terminal-Icons`
 
-## ⭐ Support Project
+## Support
 
-If project helps you:
+If this fork helps you:
 
 - Star repo
 - Share it
