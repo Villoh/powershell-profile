@@ -91,14 +91,14 @@ jobs:
             echo "Tag $TAG does not exist yet."
           fi
 
-          RELEASE_EXISTS=$(gh api repos/${{ github.repository }}/releases/tags/$TAG \
-            --jq '.id' 2>/dev/null || echo '')
-          if [ -n "$RELEASE_EXISTS" ]; then
+          HTTP_STATUS=$(gh api repos/${{ github.repository }}/releases/tags/$TAG \
+            --silent --include 2>&1 | head -1 | grep -oP '\d{3}' | head -1 || echo '404')
+          if [ "$HTTP_STATUS" = "200" ]; then
             echo "release_exists=true" >> "$GITHUB_OUTPUT"
             echo "Release $TAG already exists. Skipping."
           else
             echo "release_exists=false" >> "$GITHUB_OUTPUT"
-            echo "Release $TAG does not exist yet."
+            echo "Release $TAG does not exist yet. Will create."
           fi
         env:
           GH_TOKEN: ${{ github.token }}
