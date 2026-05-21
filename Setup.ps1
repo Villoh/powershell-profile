@@ -17,11 +17,43 @@ $installDir = switch ($InstallMode) {
 $installPath = Join-Path $installDir 'PrettyPowerShell.ps1'
 $themePath = Join-Path $installDir 'cobalt2.omp.json'
 $customProfilePath = Join-Path $powerShellRoot 'profile.ps1'
+$script:DryRunActions = [ordered]@{
+    Detect = [System.Collections.Generic.List[string]]::new()
+    Install = [System.Collections.Generic.List[string]]::new()
+    Backups = [System.Collections.Generic.List[string]]::new()
+    Migration = [System.Collections.Generic.List[string]]::new()
+    Dependencies = [System.Collections.Generic.List[string]]::new()
+    Result = [System.Collections.Generic.List[string]]::new()
+}
 
-function Write-DryRun {
-    param([string]$Message)
+function Add-DryRunAction {
+    param(
+        [ValidateSet('Detect', 'Install', 'Backups', 'Migration', 'Dependencies', 'Result')]
+        [string]$Section,
+        [string]$Message
+    )
 
-    Write-Host "[DryRun] $Message" -ForegroundColor Cyan
+    $script:DryRunActions[$Section].Add($Message)
+}
+
+function Write-DryRunSummary {
+    Write-Host '[DryRun] Pretty PowerShell preview' -ForegroundColor Cyan
+
+    foreach ($section in $script:DryRunActions.Keys) {
+        $entries = $script:DryRunActions[$section]
+        if ($entries.Count -eq 0) {
+            continue
+        }
+
+        Write-Host ''
+        Write-Host "${section}:" -ForegroundColor Cyan
+        foreach ($entry in $entries) {
+            Write-Host "  - $entry" -ForegroundColor Gray
+        }
+    }
+
+    Write-Host ''
+    Write-Host '[DryRun] No files were changed.' -ForegroundColor Cyan
 }
 
 function Ensure-Directory {
@@ -29,7 +61,7 @@ function Ensure-Directory {
 
     if (-not (Test-Path $Path)) {
         if ($DryRun) {
-            Write-DryRun "Would create directory: $Path"
+            Add-DryRunAction -Section Install -Message "Would create directory: $Path"
             return
         }
         New-Item -Path $Path -ItemType Directory -Force | Out-Null
@@ -43,7 +75,7 @@ function Backup-File {
         $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
         $backupPath = "$Path.$timestamp.bak"
         if ($DryRun) {
-            Write-DryRun "Would back up $Path to $backupPath"
+            Add-DryRunAction -Section Backups -Message "Would back up $Path to $backupPath"
             return $backupPath
         }
         Copy-Item -Path $Path -Destination $backupPath -Force
@@ -60,7 +92,7 @@ function Install-RemoteFile {
     )
 
     if ($DryRun) {
-        Write-DryRun "Would download $Uri to $Destination"
+        Add-DryRunAction -Section Install -Message "Would download $Uri to $Destination"
         return
     }
 
@@ -84,7 +116,7 @@ function Ensure-ProfileLoader {
     Ensure-Directory -Path $powerShellRoot
     if (-not (Test-Path $PROFILE)) {
         if ($DryRun) {
-            Write-DryRun "Would create profile file: $PROFILE"
+            Add-DryRunAction -Section Install -Message "Would create profile file: $PROFILE"
         } else {
             New-Item -Path $PROFILE -ItemType File -Force | Out-Null
         }
@@ -97,7 +129,7 @@ function Ensure-ProfileLoader {
     }
 
     if ($DryRun) {
-        Write-DryRun "Would append Pretty PowerShell loader to $PROFILE"
+        Add-DryRunAction -Section Migration -Message "Would append Pretty PowerShell loader to $PROFILE"
         return $true
     }
 
@@ -138,7 +170,12 @@ function Migrate-LegacyProfile {
 
     $legacyProfileDetected = Test-LegacyManagedProfile
     if (-not $legacyProfileDetected -and -not $ForceMigration) {
-        Write-Warning 'Legacy repo-managed main profile not detected. Skipping migration and appending loader instead.'
+        if ($DryRun) {
+            Add-DryRunAction -Section Detect -Message 'Legacy repo-managed main profile not confidently detected.'
+            Add-DryRunAction -Section Migration -Message 'Would skip full migration and append loader instead.'
+        } else {
+            Write-Warning 'Legacy repo-managed main profile not detected. Skipping migration and appending loader instead.'
+        }
         $loaderAdded = Ensure-ProfileLoader -ScriptPath $ScriptPath
         return [pscustomobject]@{
             Migrated = $false
@@ -150,6 +187,10 @@ function Migrate-LegacyProfile {
         }
     }
 
+    if ($DryRun) {
+        Add-DryRunAction -Section Detect -Message 'Legacy split-profile install detected. Migration plan ready.'
+    }
+
     $mainProfileBackup = Backup-File -Path $PROFILE
     $customProfileBackup = Backup-File -Path $customProfilePath
     $customProfileContent = $null
@@ -157,7 +198,7 @@ function Migrate-LegacyProfile {
     if ((Test-Path $customProfilePath) -and ((Resolve-Path $customProfilePath).Path -ne (Resolve-Path $PROFILE).Path)) {
         $customProfileContent = Get-Content $customProfilePath -Raw
         if ($DryRun) {
-            Write-DryRun "Would remove migrated sidecar profile: $customProfilePath"
+            Add-DryRunAction -Section Migration -Message "Would remove migrated sidecar profile: $customProfilePath"
         } else {
             Remove-Item $customProfilePath -Force
         }
@@ -190,7 +231,7 @@ function Migrate-LegacyProfile {
     }
 
     if ($DryRun) {
-        Write-DryRun "Would rewrite $PROFILE as loader-based migrated profile"
+        Add-DryRunAction -Section Migration -Message "Would rewrite $PROFILE as loader-based migrated profile"
     } else {
         Set-Content -Path $PROFILE -Value $newProfileContent -Encoding UTF8
     }
@@ -211,11 +252,11 @@ function Install-Dependencies {
     }
 
     if ($DryRun) {
-        Write-DryRun 'Would install Terminal-Icons module.'
+        Add-DryRunAction -Section Dependencies -Message 'Would install Terminal-Icons module.'
         if (Get-Command winget -ErrorAction SilentlyContinue) {
-            Write-DryRun 'Would install Oh My Posh, zoxide, and JetBrainsMono Nerd Font via winget.'
+            Add-DryRunAction -Section Dependencies -Message 'Would install Oh My Posh, zoxide, and JetBrainsMono Nerd Font via winget.'
         } else {
-            Write-DryRun 'Would require manual install of Oh My Posh, zoxide, and JetBrainsMono Nerd Font because winget was not found.'
+            Add-DryRunAction -Section Dependencies -Message 'Would require manual install of Oh My Posh, zoxide, and JetBrainsMono Nerd Font because winget was not found.'
         }
         return
     }
@@ -260,28 +301,50 @@ $migrationResult = if ($MigrateLegacyProfile) {
 }
 
 if ($DryRun) {
-    Write-Host 'Pretty PowerShell dry run complete.' -ForegroundColor Cyan
+    Add-DryRunAction -Section Result -Message "Standalone script path: $installPath"
+    Add-DryRunAction -Section Result -Message "Theme path: $themePath"
+
+    if ($migrationResult.Migrated) {
+        Add-DryRunAction -Section Result -Message "Would migrate legacy main profile: $PROFILE"
+        if ($migrationResult.MainProfileBackup) {
+            Add-DryRunAction -Section Result -Message "Would create main profile backup: $($migrationResult.MainProfileBackup)"
+        }
+        if ($migrationResult.CustomProfileMerged) {
+            Add-DryRunAction -Section Result -Message 'Would merge custom profile content into $PROFILE.'
+        } elseif ($migrationResult.CustomProfileWasPresent) {
+            Add-DryRunAction -Section Result -Message 'Custom profile exists but appears empty; backup would be kept and no custom content would be merged.'
+        }
+        if ($migrationResult.CustomProfileBackup) {
+            Add-DryRunAction -Section Result -Message "Would create custom profile backup: $($migrationResult.CustomProfileBackup)"
+        }
+    } elseif ($migrationResult.LoaderAdded) {
+        Add-DryRunAction -Section Result -Message "Would add loader to: $PROFILE"
+    } else {
+        Add-DryRunAction -Section Result -Message "Loader already present in: $PROFILE"
+    }
+
+    Write-DryRunSummary
 } else {
     Write-Host 'Pretty PowerShell installed as standalone script.' -ForegroundColor Green
-}
-Write-Host "Script path: $installPath" -ForegroundColor Green
-Write-Host "Theme path:  $themePath" -ForegroundColor Green
+    Write-Host "Script path: $installPath" -ForegroundColor Green
+    Write-Host "Theme path:  $themePath" -ForegroundColor Green
 
-if ($migrationResult.Migrated) {
-    Write-Host "Legacy main profile migrated: $PROFILE" -ForegroundColor Green
-    if ($migrationResult.MainProfileBackup) {
-        Write-Host "Main profile backup: $($migrationResult.MainProfileBackup)" -ForegroundColor Yellow
+    if ($migrationResult.Migrated) {
+        Write-Host "Legacy main profile migrated: $PROFILE" -ForegroundColor Green
+        if ($migrationResult.MainProfileBackup) {
+            Write-Host "Main profile backup: $($migrationResult.MainProfileBackup)" -ForegroundColor Yellow
+        }
+        if ($migrationResult.CustomProfileMerged) {
+            Write-Host 'Custom profile content merged into migrated $PROFILE.' -ForegroundColor Green
+        } elseif ($migrationResult.CustomProfileWasPresent) {
+            Write-Warning 'Custom profile existed but was empty. Backup kept; no custom content was merged.'
+        }
+        if ($migrationResult.CustomProfileBackup) {
+            Write-Host "Custom profile backup: $($migrationResult.CustomProfileBackup)" -ForegroundColor Yellow
+        }
+    } elseif ($migrationResult.LoaderAdded) {
+        Write-Host "Loader added to: $PROFILE" -ForegroundColor Green
+    } else {
+        Write-Host "Loader already present in: $PROFILE" -ForegroundColor Yellow
     }
-    if ($migrationResult.CustomProfileMerged) {
-        Write-Host 'Custom profile content merged into migrated $PROFILE.' -ForegroundColor Green
-    } elseif ($migrationResult.CustomProfileWasPresent) {
-        Write-Warning 'Custom profile existed but was empty. Backup kept; no custom content was merged.'
-    }
-    if ($migrationResult.CustomProfileBackup) {
-        Write-Host "Custom profile backup: $($migrationResult.CustomProfileBackup)" -ForegroundColor Yellow
-    }
-} elseif ($migrationResult.LoaderAdded) {
-    Write-Host "Loader added to: $PROFILE" -ForegroundColor Green
-} else {
-    Write-Host "Loader already present in: $PROFILE" -ForegroundColor Yellow
 }
