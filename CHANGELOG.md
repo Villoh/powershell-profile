@@ -7,16 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-05-21
+
 ### Added
 
 - Restored utility commands from upstream profile: `Edit-Profile`, `ep`, `Invoke-Profile`, `pubip`, `admin`, `su`, `df`, `export`, `tail`, `nf`, `dtop`, `gc`, `sysinfo`, `flushdns`, `cpy`, and `pst`.
+- Added shell-aware setup details showing detected OS, PowerShell edition/version, and actual profile root before install choices.
 
 ### Changed
 
 - Improved installer prompts with arrow-key menu navigation for choice and yes/no flows.
 - Adjusted installer menu rendering to keep cursor out of prompt area during interactive selection.
-- Setup now shows detected OS, PowerShell edition/version, and actual profile root before install choices.
+- Preferred local repo assets when running `Setup.ps1` from a checkout, while keeping remote asset downloads for `irm ... | iex` installs.
+- Tightened legacy migration detection to repo-specific Chris Titus Tech markers.
+
+### Fixed
+
 - Fixed PSReadLine initialization so Windows PowerShell avoids unsupported `PredictionViewStyle` while PowerShell 7 keeps list predictions.
+- Fixed installer UI rendering on Windows PowerShell by using ASCII-safe separators and selection markers.
+- Fixed `Show-Help` rendering on Windows PowerShell by using ASCII-safe titles, separators, and arrows.
+- Fixed local asset installation on Windows PowerShell by reading repo files as UTF-8 and writing installed files as UTF-8 with BOM.
+- Fixed duplicate Pretty PowerShell loader blocks by normalizing repeated loader entries down to a single canonical block.
+
+[1.0.3]: https://github.com/Villoh/powershell-profile/compare/v1.0.2...v1.0.3
 
 ## [1.0.2] - 2026-05-21
 
