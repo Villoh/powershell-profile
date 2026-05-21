@@ -17,7 +17,7 @@ Installer adds dot-source loader to your existing `$PROFILE` so script loads on 
 Install standalone script to `~/Documents/PowerShell/Functions/PrettyPowerShell.ps1`:
 
 ```powershell
-irm https://github.com/Villoh/powershell-profile/raw/main/setup.ps1 | iex
+irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1 | iex
 ```
 
 Installer also appends loader to `$PROFILE`, so no manual dot-sourcing needed.
@@ -27,7 +27,7 @@ Installer also appends loader to `$PROFILE`, so no manual dot-sourcing needed.
 Migrate old split-profile install into new layout:
 
 ```powershell
-$script = irm https://github.com/Villoh/powershell-profile/raw/main/setup.ps1
+$script = irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1
 & ([scriptblock]::Create($script)) -MigrateLegacyProfile
 ```
 
@@ -41,21 +41,21 @@ This will:
 Install into PowerShell root instead of `Functions`:
 
 ```powershell
-$script = irm https://github.com/Villoh/powershell-profile/raw/main/setup.ps1
+$script = irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1
 & ([scriptblock]::Create($script)) -InstallMode PowerShellRoot
 ```
 
 Install dependencies too:
 
 ```powershell
-$script = irm https://github.com/Villoh/powershell-profile/raw/main/setup.ps1
+$script = irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1
 & ([scriptblock]::Create($script)) -InstallDependencies
 ```
 
 Force refresh existing standalone install:
 
 ```powershell
-$script = irm https://github.com/Villoh/powershell-profile/raw/main/setup.ps1
+$script = irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1
 & ([scriptblock]::Create($script)) -Force
 ```
 
@@ -64,22 +64,22 @@ Use `-Force` with `-MigrateLegacyProfile` to migrate even if legacy profile dete
 Preview installer actions without changing files:
 
 ```powershell
-$script = irm https://github.com/Villoh/powershell-profile/raw/main/setup.ps1
+$script = irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1
 & ([scriptblock]::Create($script)) -DryRun
 ```
 
 Preview migration plan without changing files:
 
 ```powershell
-$script = irm https://github.com/Villoh/powershell-profile/raw/main/setup.ps1
+$script = irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1
 & ([scriptblock]::Create($script)) -MigrateLegacyProfile -DryRun
 ```
 
 ## Files
 
-- `profile.ps1` → canonical standalone script
+- `Profile.ps1` → canonical standalone script
 - `Microsoft.PowerShell_profile.ps1` → compatibility loader
-- `setup.ps1` → installer for standalone layout
+- `Setup.ps1` → installer for standalone layout
 
 ## Update behavior
 

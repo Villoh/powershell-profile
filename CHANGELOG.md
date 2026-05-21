@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `profile.ps1` as canonical standalone Pretty PowerShell script.
+- Added `Profile.ps1` as canonical standalone Pretty PowerShell script.
 - Added compatibility loader behavior to `Microsoft.PowerShell_profile.ps1`.
 - Added installer support for `-InstallMode`, `-InstallDependencies`, `-MigrateLegacyProfile`, `-DryRun`, and `-Force`.
 - Added loader-based migration from legacy split-profile installs.
@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Changed project architecture from repo-managed main `$PROFILE` replacement to standalone script installation.
 - Changed installer to place repo-managed logic in `PrettyPowerShell.ps1` and wire it into `$PROFILE` via dot-sourcing.
+- Changed repository script filenames to PascalCase for consistency (`Profile.ps1`, `Setup.ps1`).
 - Changed `Update-Profile` to update standalone installed script and adjacent theme file instead of replacing the user's main profile.
 - Changed repository references from `ChrisTitusTech` to `Villoh` in install and update URLs.
 - Changed README to document current standalone-first architecture and migration flow.

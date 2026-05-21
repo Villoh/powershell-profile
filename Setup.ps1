@@ -242,7 +242,7 @@ if ((Test-Path $themePath) -and -not $Force) {
     Backup-File -Path $themePath | Out-Null
 }
 
-Install-RemoteFile -Uri "$repoBase/profile.ps1" -Destination $installPath
+Install-RemoteFile -Uri "$repoBase/Profile.ps1" -Destination $installPath
 Install-RemoteFile -Uri 'https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/cobalt2.omp.json' -Destination $themePath
 Install-Dependencies
 

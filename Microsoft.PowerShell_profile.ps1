@@ -1,7 +1,7 @@
 ### Pretty PowerShell compatibility loader
 
 $candidatePaths = @(
-    if ($PSScriptRoot) { Join-Path $PSScriptRoot 'profile.ps1' }
+    if ($PSScriptRoot) { Join-Path $PSScriptRoot 'Profile.ps1' }
     if ($PSScriptRoot) { Join-Path $PSScriptRoot 'PrettyPowerShell.ps1' }
     if ($PROFILE) { Join-Path (Split-Path -Parent $PROFILE) 'Functions/PrettyPowerShell.ps1' }
     if ($PROFILE) { Join-Path (Split-Path -Parent $PROFILE) 'PrettyPowerShell.ps1' }
@@ -16,4 +16,4 @@ if ($prettyPowerShell) {
     return
 }
 
-Write-Warning 'Pretty PowerShell standalone script not found. Run setup.ps1 or dot-source profile.ps1 manually.'
+Write-Warning 'Pretty PowerShell standalone script not found. Run Setup.ps1 or dot-source Profile.ps1 manually.'

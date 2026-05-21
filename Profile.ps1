@@ -102,7 +102,7 @@ function Update-Profile {
     $baseUrl = "https://raw.githubusercontent.com/Villoh/powershell-profile/$Ref"
     $themePath = if ($script:PrettyPowerShellRoot) { Join-Path $script:PrettyPowerShellRoot 'cobalt2.omp.json' } else { $null }
 
-    Invoke-WebRequest -Uri "$baseUrl/profile.ps1" -OutFile $installPath
+    Invoke-WebRequest -Uri "$baseUrl/Profile.ps1" -OutFile $installPath
     if ($themePath) {
         Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/cobalt2.omp.json' -OutFile $themePath
     }
