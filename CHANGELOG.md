@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Restored utility commands from upstream profile: `Edit-Profile`, `ep`, `Invoke-Profile`, `pubip`, `admin`, `su`, `df`, `export`, `tail`, `nf`, `dtop`, `gc`, `sysinfo`, `flushdns`, `cpy`, and `pst`.
+
+### Changed
+
+- Improved installer prompts with arrow-key menu navigation for choice and yes/no flows.
+- Adjusted installer menu rendering to keep cursor out of prompt area during interactive selection.
+
 ## [1.0.2] - 2026-05-21
 
 ### Changed

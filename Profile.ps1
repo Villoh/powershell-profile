@@ -139,6 +139,28 @@ function Update-Profile {
     }
 }
 
+function Get-PrettyPowerShellEditor {
+    foreach ($editor in @('nvim', 'code', 'notepad++', 'notepad')) {
+        $command = Get-Command $editor -ErrorAction SilentlyContinue
+        if ($command) {
+            return $command.Source
+        }
+    }
+
+    return 'notepad'
+}
+
+function Edit-Profile {
+    $editor = Get-PrettyPowerShellEditor
+    & $editor $PROFILE.CurrentUserAllHosts
+}
+
+Set-Alias -Name ep -Value Edit-Profile
+
+function Invoke-Profile {
+    & $PROFILE
+}
+
 function touch ($File) {
     if (Test-Path $File) {
         (Get-Item $File).LastWriteTime = Get-Date
@@ -146,6 +168,33 @@ function touch ($File) {
         New-Item $File -ItemType File | Out-Null
     }
 }
+
+function pubip {
+    (Invoke-WebRequest http://ifconfig.me/ip).Content
+}
+
+function admin {
+    $cwd = (Get-Location).ProviderPath
+    $terminal = Get-Command wt -ErrorAction SilentlyContinue
+    if ($terminal) {
+        if ($args.Count -gt 0) {
+            $argList = $args -join ' '
+            Start-Process $terminal.Source -Verb RunAs -ArgumentList @('-d', $cwd, 'pwsh.exe', '-NoExit', '-Command', $argList)
+        } else {
+            Start-Process $terminal.Source -Verb RunAs -ArgumentList @('-d', $cwd, 'pwsh.exe', '-NoExit')
+        }
+        return
+    }
+
+    if ($args.Count -gt 0) {
+        $argList = $args -join ' '
+        Start-Process pwsh -Verb RunAs -ArgumentList @('-NoExit', '-Command', "Set-Location '$cwd'; $argList")
+    } else {
+        Start-Process pwsh -Verb RunAs -ArgumentList @('-NoExit', '-Command', "Set-Location '$cwd'")
+    }
+}
+
+Set-Alias -Name su -Value admin
 
 function mkcd ($Path) {
     New-Item -Path $Path -ItemType Directory -Force | Out-Null
@@ -168,12 +217,25 @@ function head ($Path) {
     Get-Content $Path -Head 10
 }
 
+function tail {
+    param($Path, $n = 10, [switch]$f = $false)
+    Get-Content $Path -Tail $n -Wait:$f
+}
+
 function sed ($File, $Find, $Replace) {
     (Get-Content $File).replace("$Find", $Replace) | Set-Content $File
 }
 
 function which ($Name) {
     (Get-Command $Name).Source
+}
+
+function df {
+    Get-Volume
+}
+
+function export($Name, $Value) {
+    Set-Item -Force -Path "env:$Name" -Value $Value
 }
 
 function unzip ($File) {
@@ -207,6 +269,11 @@ function grep ($Pattern, $Path) {
     }
 }
 
+function nf {
+    param($Name)
+    New-Item -ItemType File -Path . -Name $Name
+}
+
 function uptime {
     if (Get-Command Get-Uptime -ErrorAction SilentlyContinue) {
         $boot = Get-Uptime -Since
@@ -226,6 +293,7 @@ function winutildev {
 
 function gs { git status }
 function ga { git add . }
+function gc { param($m) git commit -m "$m" }
 function gp { git push }
 function gpush { git push }
 function gpull { git pull }
@@ -254,12 +322,33 @@ function docs {
     Set-Location -Path ([Environment]::GetFolderPath('MyDocuments'))
 }
 
+function dtop {
+    Set-Location -Path ([Environment]::GetFolderPath('Desktop'))
+}
+
 function la {
     Get-ChildItem | Format-Table -AutoSize
 }
 
 function ll {
     Get-ChildItem -Force | Format-Table -AutoSize
+}
+
+function sysinfo {
+    Get-ComputerInfo
+}
+
+function flushdns {
+    Clear-DnsClientCache
+    Write-Host 'DNS has been flushed'
+}
+
+function cpy {
+    Set-Clipboard $args[0]
+}
+
+function pst {
+    Get-Clipboard
 }
 
 function Show-Help {
@@ -279,12 +368,15 @@ ${dim}━━━━━━━━━━━━━━━━━━━━━━━━�
 ${section}󰊢 Script${reset}
 ${dim}────────────────────────────────────────────────────${reset}
   ${command}Loaded from${reset}        ${accent}→${reset} ${desc}$installPath${reset}
-  ${command}Update-Profile${reset}     ${accent}→${reset} ${desc}Updates standalone Pretty PowerShell script.${reset}
+  ${command}Edit-Profile / ep${reset}  ${accent}→${reset} ${desc}Open profile for editing.${reset}
+  ${command}Invoke-Profile${reset}     ${accent}→${reset} ${desc}Reload current profile.${reset}
+  ${command}Update-Profile${reset}     ${accent}→${reset} ${desc}Update standalone Pretty PowerShell script.${reset}
 
 ${section}󰊢 Git Shortcuts${reset}
 ${dim}────────────────────────────────────────────────────${reset}
   ${command}g${reset}                  ${accent}→${reset} ${desc}Changes to GitHub directory${reset}
   ${command}ga${reset}                 ${accent}→${reset} ${desc}git add .${reset}
+  ${command}gc <message>${reset}       ${accent}→${reset} ${desc}git commit -m${reset}
   ${command}gcl <repo>${reset}         ${accent}→${reset} ${desc}git clone${reset}
   ${command}gcom <message>${reset}     ${accent}→${reset} ${desc}add + commit${reset}
   ${command}gp / gpush${reset}         ${accent}→${reset} ${desc}git push${reset}
@@ -294,16 +386,27 @@ ${dim}────────────────────────�
 
 ${section}󰘴 System Shortcuts${reset}
 ${dim}────────────────────────────────────────────────────${reset}
-  ${command}docs${reset}               ${accent}→${reset} ${desc}Documents folder${reset}
+  ${command}admin / su [cmd]${reset}   ${accent}→${reset} ${desc}Open elevated shell or run command.${reset}
+  ${command}cpy <text>${reset}         ${accent}→${reset} ${desc}Copy text to clipboard.${reset}
+  ${command}df${reset}                 ${accent}→${reset} ${desc}Show volumes.${reset}
+  ${command}docs${reset}               ${accent}→${reset} ${desc}Documents folder.${reset}
+  ${command}dtop${reset}               ${accent}→${reset} ${desc}Desktop folder.${reset}
+  ${command}export <k> <v>${reset}     ${accent}→${reset} ${desc}Set environment variable.${reset}
   ${command}ff <name>${reset}          ${accent}→${reset} ${desc}Search files${reset}
+  ${command}flushdns${reset}           ${accent}→${reset} ${desc}Clear DNS cache.${reset}
   ${command}grep <pattern> [path]${reset} ${accent}→${reset} ${desc}Search text${reset}
   ${command}head <file>${reset}        ${accent}→${reset} ${desc}First lines${reset}
   ${command}k9 <name>${reset}          ${accent}→${reset} ${desc}Kill process by name${reset}
-  ${command}ll${reset}                 ${accent}→${reset} ${desc}List files${reset}
+  ${command}ll / la${reset}            ${accent}→${reset} ${desc}List files${reset}
   ${command}mkcd <dir>${reset}         ${accent}→${reset} ${desc}Create + enter dir${reset}
+  ${command}nf <name>${reset}          ${accent}→${reset} ${desc}Create new file.${reset}
   ${command}pgrep <name>${reset}       ${accent}→${reset} ${desc}Find process by name${reset}
   ${command}pkill <name>${reset}       ${accent}→${reset} ${desc}Stop process by name${reset}
+  ${command}pst${reset}                ${accent}→${reset} ${desc}Paste clipboard text.${reset}
+  ${command}pubip${reset}              ${accent}→${reset} ${desc}Show public IP.${reset}
   ${command}sed <file> <find> <replace>${reset} ${accent}→${reset} ${desc}Replace text${reset}
+  ${command}sysinfo${reset}            ${accent}→${reset} ${desc}Show system info.${reset}
+  ${command}tail <file> [n]${reset}    ${accent}→${reset} ${desc}Last lines, optional follow.${reset}
   ${command}touch <file>${reset}       ${accent}→${reset} ${desc}Create file${reset}
   ${command}unzip <file>${reset}       ${accent}→${reset} ${desc}Extract zip${reset}
   ${command}uptime${reset}             ${accent}→${reset} ${desc}System uptime${reset}
