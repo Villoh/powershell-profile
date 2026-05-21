@@ -57,37 +57,53 @@ function Write-InstallSummary {
     }
 }
 
-function Prompt-Bool {
-    param(
-        [string]$Question,
-        [bool]$Default = $false
-    )
-
-    $hint = if ($Default) { '[Y/n]' } else { '[y/N]' }
-    Write-Host "$Question $hint " -ForegroundColor White -NoNewline
-    $input = (Read-Host).Trim()
-    if ($input -eq '') { return $Default }
-    return $input -match '^[Yy]'
-}
-
-function Prompt-Choice {
+function Invoke-InteractiveMenu {
     param(
         [string]$Question,
         [string[]]$Options,
         [int]$Default = 0
     )
 
-    Write-Host "$Question" -ForegroundColor White
-    for ($i = 0; $i -lt $Options.Count; $i++) {
-        $marker = if ($i -eq $Default) { '●' } else { '○' }
-        Write-Host "  [$($i+1)] $marker $($Options[$i])" -ForegroundColor $(if ($i -eq $Default) { 'Cyan' } else { 'Gray' })
+    $selected = $Default
+    $optionCount = $Options.Count
+
+    function Render {
+        param([int]$Sel)
+        [Console]::SetCursorPosition(0, [Console]::CursorTop - $optionCount)
+        for ($i = 0; $i -lt $optionCount; $i++) {
+            $marker = if ($i -eq $Sel) { '▶' } else { ' ' }
+            $color  = if ($i -eq $Sel) { 'Cyan' } else { 'Gray' }
+            Write-Host "  $marker $($Options[$i])" -ForegroundColor $color
+        }
     }
-    Write-Host "  Choice (default $($Default+1)): " -ForegroundColor White -NoNewline
-    $input = (Read-Host).Trim()
-    if ($input -eq '') { return $Default }
-    $idx = [int]$input - 1
-    if ($idx -lt 0 -or $idx -ge $Options.Count) { return $Default }
-    return $idx
+
+    Write-Host "$Question" -ForegroundColor White
+    for ($i = 0; $i -lt $optionCount; $i++) {
+        $marker = if ($i -eq $selected) { '▶' } else { ' ' }
+        $color  = if ($i -eq $selected) { 'Cyan' } else { 'Gray' }
+        Write-Host "  $marker $($Options[$i])" -ForegroundColor $color
+    }
+
+    while ($true) {
+        $key = [Console]::ReadKey($true)
+        switch ($key.Key) {
+            'UpArrow'   { if ($selected -gt 0) { $selected--; Render $selected } }
+            'DownArrow' { if ($selected -lt $optionCount - 1) { $selected++; Render $selected } }
+            'Enter'     { Write-Host ''; return $selected }
+        }
+    }
+}
+
+function Invoke-InteractiveBool {
+    param(
+        [string]$Question,
+        [bool]$Default = $false
+    )
+
+    $options = @('Yes', 'No')
+    $defaultIdx = if ($Default) { 0 } else { 1 }
+    $result = Invoke-InteractiveMenu -Question $Question -Options $options -Default $defaultIdx
+    return $result -eq 0
 }
 
 function Ensure-Directory {
@@ -399,11 +415,11 @@ if (-not $DryRun -and -not $Force) {
     Write-Host '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━' -ForegroundColor Cyan
     Write-Host ''
 
-    $installChoiceIdx = Prompt-Choice `
+    $installChoiceIdx = Invoke-InteractiveMenu `
         -Question 'Install location:' `
         -Options @(
-            "~/Documents/PowerShell/PrettyPowerShell  (recommended)",
-            "~/Documents/PowerShell"
+            '~/Documents/PowerShell/PrettyPowerShell  (recommended)',
+            '~/Documents/PowerShell'
         ) `
         -Default 0
 
@@ -414,10 +430,13 @@ if (-not $DryRun -and -not $Force) {
     }
 
     Write-Host ''
-    $doMigrate   = if ($isLegacy) { Prompt-Bool "Legacy profile detected. Migrate to loader-based layout?$legacyLabel" $true } else { $false }
-    $doStarship  = Prompt-Bool 'Bootstrap Starship config if missing?' $false
-    $doFastfetch = Prompt-Bool 'Bootstrap Fastfetch config if missing?' $false
-    $doDeps      = Prompt-Bool 'Install dependencies (Starship, fastfetch, zoxide, JetBrainsMono)?' $false
+    $doMigrate   = if ($isLegacy) { Invoke-InteractiveBool "Legacy profile detected. Migrate to loader-based layout?" $true } else { $false }
+    Write-Host ''
+    $doStarship  = Invoke-InteractiveBool 'Bootstrap Starship config if missing?' $false
+    Write-Host ''
+    $doFastfetch = Invoke-InteractiveBool 'Bootstrap Fastfetch config if missing?' $false
+    Write-Host ''
+    $doDeps      = Invoke-InteractiveBool 'Install dependencies (Starship, fastfetch, zoxide, JetBrainsMono)?' $false
 
     Write-Host ''
     Write-Host '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━' -ForegroundColor Cyan
