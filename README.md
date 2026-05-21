@@ -2,6 +2,8 @@
 
 Pretty PowerShell is a standalone PowerShell customization script focused on safer installation, easier updates, clearer ownership boundaries, and a Starship-based prompt.
 
+It now supports both Windows PowerShell 5.1 and PowerShell 7+.
+
 > This repository is a fork of `ChrisTitusTech/powershell-profile`, refactored around a standalone-script architecture.
 
 ## Why this fork exists
@@ -15,7 +17,20 @@ Original layout mixed repo-managed profile logic with user-owned PowerShell prof
 - `Microsoft.PowerShell_profile.ps1` → compatibility loader
 - `$PROFILE` → user-owned startup file that dot-sources Pretty PowerShell
 
+## Support
+
+- Windows PowerShell 5.1
+- PowerShell 7+
+- Windows-first project
+
+Install target is shell-specific because `$PROFILE` differs by host:
+
+- Windows PowerShell → `~/Documents/WindowsPowerShell`
+- PowerShell 7+ → `~/Documents/PowerShell`
+
 ## Install
+
+Run installer from shell you want to configure.
 
 ```powershell
 irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1 | iex
@@ -47,11 +62,10 @@ Skips interactive prompts and applies all defaults. Useful for scripted re-insta
 
 ## Backups
 
-All overwritten files are backed up to:
+All overwritten files are backed up under current shell profile root:
 
-```
-~/Documents/PowerShell/Backups/<yyyyMMdd-HHmmss>/
-```
+- Windows PowerShell → `~/Documents/WindowsPowerShell/Backups/<yyyyMMdd-HHmmss>/`
+- PowerShell 7+ → `~/Documents/PowerShell/Backups/<yyyyMMdd-HHmmss>/`
 
 Each run creates its own dated subfolder. Includes:
 
@@ -63,7 +77,7 @@ Each run creates its own dated subfolder. Includes:
 
 ## Update behavior
 
-`Update-Profile` updates installed standalone script. Backs up existing script and Starship config before overwrite.
+`Update-Profile` updates installed standalone script for current shell. Backs up existing script and Starship config before overwrite.
 
 ## Prompt
 
@@ -79,6 +93,8 @@ On interactive shell:
 2. Fastfetch runs with config at `~/.config/fastfetch/config.jsonc`
 3. `Show-Help` hint prints
 
+Windows PowerShell automatically uses ASCII-safe installer and help UI plus compatible PSReadLine settings.
+
 ## Recommended extras
 
 - `JetBrainsMono Nerd Font`
@@ -93,7 +109,7 @@ Install all via installer dependency option or manually:
 winget install Starship.Starship fastfetch-cli.fastfetch ajeetdsouza.zoxide DEVCOM.JetBrainsMonoNerdFont
 ```
 
-## Support
+## Project support
 
 If this fork helps you:
 
