@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Replaced Oh My Posh with Starship for prompt initialization.
+- Moved backup storage from alongside source files to `~/Documents/PowerShell/Backups/` with timestamped filenames.
+- Added pre-update backup in `Update-Profile` and all refresh/force runs for rollback safety.
+- Unified install and migration output into grouped sectioned summary format matching dry-run output.
+
+### Fixed
+
+- Fixed dry-run output to correctly show hypothetical wording for all actions.
+
 ## [1.0.0] - 2026-05-21
 
 ### Added
