@@ -1,20 +1,11 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('PrettyPowerShell', 'PowerShellRoot')]
-    [string]$InstallMode = 'PrettyPowerShell',
-    [switch]$InstallDependencies,
-    [switch]$MigrateLegacyProfile,
     [switch]$DryRun,
     [switch]$Force
 )
 
 $repoBase = 'https://raw.githubusercontent.com/Villoh/powershell-profile/main'
 $powerShellRoot = Split-Path -Parent $PROFILE
-$installDir = switch ($InstallMode) {
-    'PrettyPowerShell' { Join-Path $powerShellRoot 'PrettyPowerShell' }
-    'PowerShellRoot' { $powerShellRoot }
-}
-$installPath = Join-Path $installDir 'PrettyPowerShell.ps1'
 $userHome = $env:USERPROFILE
 $starshipConfigDir = Join-Path $userHome '.config'
 $starshipConfigPath = Join-Path $starshipConfigDir 'starship.toml'
@@ -23,7 +14,6 @@ $fastfetchConfigPath = Join-Path $fastfetchConfigDir 'config.jsonc'
 $customProfilePath = Join-Path $powerShellRoot 'profile.ps1'
 $backupRootDir = Join-Path $powerShellRoot 'Backups'
 $script:BackupTimestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-$backupDir = Join-Path $backupRootDir $script:BackupTimestamp
 $script:BackupDirLogged = $false
 $script:InstallLog = [ordered]@{
     Detect       = [System.Collections.Generic.List[string]]::new()
@@ -53,10 +43,7 @@ function Write-InstallSummary {
 
     foreach ($section in $script:InstallLog.Keys) {
         $entries = $script:InstallLog[$section]
-        if ($entries.Count -eq 0) {
-            continue
-        }
-
+        if ($entries.Count -eq 0) { continue }
         Write-Host ''
         Write-Host "${section}:" -ForegroundColor Cyan
         foreach ($entry in $entries) {
@@ -68,6 +55,39 @@ function Write-InstallSummary {
     if ($DryRun) {
         Write-Host '[DryRun] No files were changed.' -ForegroundColor Cyan
     }
+}
+
+function Prompt-Bool {
+    param(
+        [string]$Question,
+        [bool]$Default = $false
+    )
+
+    $hint = if ($Default) { '[Y/n]' } else { '[y/N]' }
+    Write-Host "$Question $hint " -ForegroundColor White -NoNewline
+    $input = (Read-Host).Trim()
+    if ($input -eq '') { return $Default }
+    return $input -match '^[Yy]'
+}
+
+function Prompt-Choice {
+    param(
+        [string]$Question,
+        [string[]]$Options,
+        [int]$Default = 0
+    )
+
+    Write-Host "$Question" -ForegroundColor White
+    for ($i = 0; $i -lt $Options.Count; $i++) {
+        $marker = if ($i -eq $Default) { '●' } else { '○' }
+        Write-Host "  [$($i+1)] $marker $($Options[$i])" -ForegroundColor $(if ($i -eq $Default) { 'Cyan' } else { 'Gray' })
+    }
+    Write-Host "  Choice (default $($Default+1)): " -ForegroundColor White -NoNewline
+    $input = (Read-Host).Trim()
+    if ($input -eq '') { return $Default }
+    $idx = [int]$input - 1
+    if ($idx -lt 0 -or $idx -ge $Options.Count) { return $Default }
+    return $idx
 }
 
 function Ensure-Directory {
@@ -84,27 +104,27 @@ function Ensure-Directory {
 }
 
 function Ensure-BackupDir {
+    param([string]$BackupDir)
+
     if (-not $script:BackupDirLogged) {
         if ($DryRun) {
-            Add-Log -Section Backups -Message "Would create backup folder: $backupDir"
+            Add-Log -Section Backups -Message "Would create backup folder: $BackupDir"
         } else {
-            Ensure-Directory -Path $backupDir
-            Add-Log -Section Backups -Message "Created backup folder: $backupDir"
+            New-Item -Path $BackupDir -ItemType Directory -Force | Out-Null
+            Add-Log -Section Backups -Message "Created backup folder: $BackupDir"
         }
         $script:BackupDirLogged = $true
     }
 }
 
 function Backup-File {
-    param([string]$Path)
+    param([string]$Path, [string]$BackupDir)
 
-    if (-not (Test-Path $Path)) {
-        return $null
-    }
+    if (-not (Test-Path $Path)) { return $null }
 
     $fileName = Split-Path -Leaf $Path
-    $backupPath = Join-Path $backupDir $fileName
-    Ensure-BackupDir
+    $backupPath = Join-Path $BackupDir $fileName
+    Ensure-BackupDir -BackupDir $BackupDir
 
     if ($DryRun) {
         Add-Log -Section Backups -Message "Would back up $Path to $backupPath"
@@ -117,17 +137,12 @@ function Backup-File {
 }
 
 function Backup-Directory {
-    param(
-        [string]$Path,
-        [string]$Name
-    )
+    param([string]$Path, [string]$Name, [string]$BackupDir)
 
-    if (-not (Test-Path $Path)) {
-        return $null
-    }
+    if (-not (Test-Path $Path)) { return $null }
 
-    $backupPath = Join-Path $backupDir $Name
-    Ensure-BackupDir
+    $backupPath = Join-Path $BackupDir $Name
+    Ensure-BackupDir -BackupDir $BackupDir
 
     if ($DryRun) {
         Add-Log -Section Backups -Message "Would back up folder $Path to $backupPath"
@@ -140,10 +155,7 @@ function Backup-Directory {
 }
 
 function Install-RemoteFile {
-    param(
-        [string]$Uri,
-        [string]$Destination
-    )
+    param([string]$Uri, [string]$Destination)
 
     if ($DryRun) {
         Add-Log -Section Install -Message "Would download $Uri to $Destination"
@@ -196,9 +208,7 @@ function Ensure-ProfileLoader {
 }
 
 function Test-LegacyManagedProfile {
-    if (-not (Test-Path $PROFILE)) {
-        return $false
-    }
+    if (-not (Test-Path $PROFILE)) { return $false }
 
     $profileContent = Get-Content $PROFILE -Raw
     $legacySignals = @(
@@ -210,19 +220,14 @@ function Test-LegacyManagedProfile {
     )
 
     foreach ($signal in $legacySignals) {
-        if ($profileContent -like "*$signal*") {
-            return $true
-        }
+        if ($profileContent -like "*$signal*") { return $true }
     }
 
     return $false
 }
 
 function Migrate-LegacyProfile {
-    param(
-        [string]$ScriptPath,
-        [switch]$ForceMigration
-    )
+    param([string]$ScriptPath, [string]$BackupDir, [switch]$ForceMigration)
 
     Ensure-Directory -Path $powerShellRoot
 
@@ -248,8 +253,8 @@ function Migrate-LegacyProfile {
 
     Add-Log -Section Detect -Message 'Legacy split-profile install detected.'
 
-    $mainProfileBackup = Backup-File -Path $PROFILE
-    $customProfileBackup = Backup-File -Path $customProfilePath
+    $mainProfileBackup = Backup-File -Path $PROFILE -BackupDir $BackupDir
+    $customProfileBackup = Backup-File -Path $customProfilePath -BackupDir $BackupDir
     $customProfileContent = $null
 
     if ((Test-Path $customProfilePath) -and ((Resolve-Path $customProfilePath).Path -ne (Resolve-Path $PROFILE).Path)) {
@@ -269,16 +274,10 @@ function Migrate-LegacyProfile {
         "# Migration date: $migrationDate",
         '# Repo-managed logic lives in standalone PrettyPowerShell.ps1'
     )
-    if ($mainProfileBackup) {
-        $newProfileHeader += "# Previous main profile backup: $mainProfileBackup"
-    }
-    if ($customProfileBackup) {
-        $newProfileHeader += "# Previous custom profile backup: $customProfileBackup"
-    }
-    $newProfileContent = @(
-        ($newProfileHeader -join "`r`n"),
-        $loaderBlock.TrimEnd()
-    ) -join "`r`n`r`n"
+    if ($mainProfileBackup) { $newProfileHeader += "# Previous main profile backup: $mainProfileBackup" }
+    if ($customProfileBackup) { $newProfileHeader += "# Previous custom profile backup: $customProfileBackup" }
+
+    $newProfileContent = @(($newProfileHeader -join "`r`n"), $loaderBlock.TrimEnd()) -join "`r`n`r`n"
 
     if ($customProfileContent -and $customProfileContent.Trim()) {
         $newProfileContent += "`r`n`r`n# ---- BEGIN MIGRATED USER CUSTOMIZATIONS ----`r`n`r`n"
@@ -297,17 +296,9 @@ function Migrate-LegacyProfile {
 
     $customMerged = [bool]($customProfileContent -and $customProfileContent.Trim())
     if ($customMerged) {
-        if ($DryRun) {
-            Add-Log -Section Migration -Message 'Would merge custom profile.ps1 content into $PROFILE'
-        } else {
-            Add-Log -Section Migration -Message 'Merged custom profile.ps1 content into $PROFILE'
-        }
+        Add-Log -Section Migration -Message $(if ($DryRun) { 'Would merge custom profile.ps1 content into $PROFILE' } else { 'Merged custom profile.ps1 content into $PROFILE' })
     } elseif ($customProfileBackup) {
-        if ($DryRun) {
-            Add-Log -Section Migration -Message 'Custom profile.ps1 exists but is empty; backup kept, no content merged'
-        } else {
-            Add-Log -Section Migration -Message 'Custom profile.ps1 was empty; backup kept, no content merged'
-        }
+        Add-Log -Section Migration -Message $(if ($DryRun) { 'Custom profile.ps1 exists but is empty; backup kept, no content merged' } else { 'Custom profile.ps1 was empty; backup kept, no content merged' })
     }
 
     return [pscustomobject]@{
@@ -365,9 +356,7 @@ function Ensure-StarshipConfig {
 }
 
 function Install-Dependencies {
-    if (-not $InstallDependencies) {
-        return
-    }
+    param([switch]$WingetOnly)
 
     if ($DryRun) {
         Add-Log -Section Dependencies -Message 'Would install Terminal-Icons module.'
@@ -398,25 +387,72 @@ function Install-Dependencies {
     }
 }
 
+# ─── Interactive setup ────────────────────────────────────────────────────────
+
+$isLegacy = Test-LegacyManagedProfile
+$legacyLabel = if ($isLegacy) { ' (legacy profile detected)' } else { '' }
+
+if (-not $DryRun -and -not $Force) {
+    Write-Host ''
+    Write-Host '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━' -ForegroundColor Cyan
+    Write-Host '  Pretty PowerShell Setup' -ForegroundColor White
+    Write-Host '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━' -ForegroundColor Cyan
+    Write-Host ''
+
+    $installChoiceIdx = Prompt-Choice `
+        -Question 'Install location:' `
+        -Options @(
+            "~/Documents/PowerShell/PrettyPowerShell  (recommended)",
+            "~/Documents/PowerShell"
+        ) `
+        -Default 0
+
+    $installDir = if ($installChoiceIdx -eq 0) {
+        Join-Path $powerShellRoot 'PrettyPowerShell'
+    } else {
+        $powerShellRoot
+    }
+
+    Write-Host ''
+    $doMigrate   = if ($isLegacy) { Prompt-Bool "Legacy profile detected. Migrate to loader-based layout?$legacyLabel" $true } else { $false }
+    $doStarship  = Prompt-Bool 'Bootstrap Starship config if missing?' $false
+    $doFastfetch = Prompt-Bool 'Bootstrap Fastfetch config if missing?' $false
+    $doDeps      = Prompt-Bool 'Install dependencies (Starship, fastfetch, zoxide, JetBrainsMono)?' $false
+
+    Write-Host ''
+    Write-Host '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━' -ForegroundColor Cyan
+    Write-Host '  Press Enter to install or Ctrl+C to cancel.' -ForegroundColor White
+    Write-Host '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━' -ForegroundColor Cyan
+    Read-Host | Out-Null
+    Write-Host ''
+} else {
+    # DryRun or Force: use safe defaults
+    $installDir  = Join-Path $powerShellRoot 'PrettyPowerShell'
+    $doMigrate   = $isLegacy
+    $doStarship  = $true
+    $doFastfetch = $true
+    $doDeps      = $false
+}
+
+$installPath = Join-Path $installDir 'PrettyPowerShell.ps1'
+$backupDir   = Join-Path $backupRootDir $script:BackupTimestamp
+
+# ─── Execute ──────────────────────────────────────────────────────────────────
+
 Ensure-Directory -Path $installDir
 
-if (Test-Path $installPath) {
-    Backup-File -Path $installPath | Out-Null
-}
-if (Test-Path $starshipConfigPath) {
-    Backup-File -Path $starshipConfigPath | Out-Null
-}
-if (Test-Path $fastfetchConfigDir) {
-    Backup-Directory -Path $fastfetchConfigDir -Name 'fastfetch' | Out-Null
-}
+if (Test-Path $installPath) { Backup-File -Path $installPath -BackupDir $backupDir | Out-Null }
+if (Test-Path $starshipConfigPath) { Backup-File -Path $starshipConfigPath -BackupDir $backupDir | Out-Null }
+if (Test-Path $fastfetchConfigDir) { Backup-Directory -Path $fastfetchConfigDir -Name 'fastfetch' -BackupDir $backupDir | Out-Null }
 
 Install-RemoteFile -Uri "$repoBase/Profile.ps1" -Destination $installPath
-Install-Dependencies
-Ensure-StarshipConfig | Out-Null
-Ensure-FastfetchConfig | Out-Null
 
-$migrationResult = if ($MigrateLegacyProfile) {
-    Migrate-LegacyProfile -ScriptPath $installPath -ForceMigration:$Force
+if ($doDeps) { Install-Dependencies }
+if ($doStarship) { Ensure-StarshipConfig | Out-Null }
+if ($doFastfetch) { Ensure-FastfetchConfig | Out-Null }
+
+$migrationResult = if ($doMigrate) {
+    Migrate-LegacyProfile -ScriptPath $installPath -BackupDir $backupDir -ForceMigration:$Force
 } else {
     [pscustomobject]@{
         Migrated             = $false
