@@ -5,6 +5,7 @@ param(
 )
 
 $repoBase = 'https://raw.githubusercontent.com/Villoh/powershell-profile/main'
+$localRepoRoot = if ($PSScriptRoot -and (Test-Path (Join-Path $PSScriptRoot 'Profile.ps1'))) { $PSScriptRoot } else { $null }
 $powerShellRoot = Split-Path -Parent $PROFILE
 $userHome = if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }
 $osName = if ($PSVersionTable.Platform -eq 'Win32NT' -or $env:OS -eq 'Windows_NT') { 'Windows' } elseif ($IsMacOS) { 'macOS' } elseif ($IsLinux) { 'Linux' } else { 'Unknown' }
@@ -192,16 +193,40 @@ function Backup-Directory {
     return $backupPath
 }
 
-function Install-RemoteFile {
-    param([string]$Uri, [string]$Destination)
+function Resolve-RepoAsset {
+    param([string]$RelativePath)
+
+    if ($localRepoRoot) {
+        $localPath = Join-Path $localRepoRoot $RelativePath
+        if (Test-Path $localPath) {
+            return [pscustomobject]@{ Type = 'local'; Source = $localPath }
+        }
+    }
+
+    return [pscustomobject]@{ Type = 'remote'; Source = "$repoBase/$RelativePath" }
+}
+
+function Install-RepoFile {
+    param([string]$RelativePath, [string]$Destination)
+
+    $asset = Resolve-RepoAsset -RelativePath $RelativePath
 
     if ($DryRun) {
-        Add-Log -Section Install -Message "Would download $Uri to $Destination"
+        if ($asset.Type -eq 'local') {
+            Add-Log -Section Install -Message "Would copy $($asset.Source) to $Destination"
+        } else {
+            Add-Log -Section Install -Message "Would download $($asset.Source) to $Destination"
+        }
         return
     }
 
-    Invoke-WebRequest -Uri $Uri -OutFile $Destination
-    Add-Log -Section Install -Message "Downloaded $Uri to $Destination"
+    if ($asset.Type -eq 'local') {
+        Copy-Item -Path $asset.Source -Destination $Destination -Force
+        Add-Log -Section Install -Message "Copied $($asset.Source) to $Destination"
+    } else {
+        Invoke-WebRequest -Uri $asset.Source -OutFile $Destination
+        Add-Log -Section Install -Message "Downloaded $($asset.Source) to $Destination"
+    }
 }
 
 function Get-LoaderBlock {
@@ -362,8 +387,8 @@ function Ensure-FastfetchConfig {
     }
 
     Ensure-Directory -Path $fastfetchConfigDir
-    Install-RemoteFile -Uri "$repoBase/fastfetch/config.jsonc" -Destination $fastfetchConfigPath
-    Install-RemoteFile -Uri "$repoBase/fastfetch/ascii.txt" -Destination (Join-Path $fastfetchConfigDir 'ascii.txt')
+    Install-RepoFile -RelativePath 'fastfetch/config.jsonc' -Destination $fastfetchConfigPath
+    Install-RepoFile -RelativePath 'fastfetch/ascii.txt' -Destination (Join-Path $fastfetchConfigDir 'ascii.txt')
     Add-Log -Section Install -Message "Initialized fastfetch config at $fastfetchConfigDir"
     return $true
 }
@@ -491,7 +516,7 @@ if (Test-Path $installPath) { Backup-File -Path $installPath -BackupDir $backupD
 if (Test-Path $starshipConfigPath) { Backup-File -Path $starshipConfigPath -BackupDir $backupDir | Out-Null }
 if (Test-Path $fastfetchConfigDir) { Backup-Directory -Path $fastfetchConfigDir -Name 'fastfetch' -BackupDir $backupDir | Out-Null }
 
-Install-RemoteFile -Uri "$repoBase/Profile.ps1" -Destination $installPath
+Install-RepoFile -RelativePath 'Profile.ps1' -Destination $installPath
 
 if ($doDeps) { Install-Dependencies }
 if ($doStarship) { Ensure-StarshipConfig | Out-Null }
