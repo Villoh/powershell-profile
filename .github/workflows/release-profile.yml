@@ -52,9 +52,9 @@ jobs:
           LINE1=$(grep -nm1 "## \[$VERSION\]" CHANGELOG.md | cut -d: -f1)
           LINE2=$(awk "NR>$LINE1 && /^\#\# \[/{print NR; exit}" CHANGELOG.md)
           if [ -n "$LINE2" ]; then
-            BODY=$(sed -n "$((LINE1+1)),$((LINE2-1))p" CHANGELOG.md | sed '/^[[:space:]]*$/d' | head -c 125000)
+            BODY=$(sed -n "$((LINE1+1)),$((LINE2-1))p" CHANGELOG.md | sed '/^[[:space:]]*$/d' | grep -v '^\[.*\]:' | head -c 125000)
           else
-            BODY=$(sed -n "$((LINE1+1)),\$p" CHANGELOG.md | sed '/^[[:space:]]*$/d' | head -c 125000)
+            BODY=$(sed -n "$((LINE1+1)),\$p" CHANGELOG.md | sed '/^[[:space:]]*$/d' | grep -v '^\[.*\]:' | head -c 125000)
           fi
 
           if echo "$DATE" | grep -qE '^[0-9]{4}'; then

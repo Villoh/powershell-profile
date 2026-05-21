@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-05-21
+
 ### Changed
 
 - Replaced all installer flags (`-InstallMode`, `-InstallDependencies`, `-MigrateLegacyProfile`) with interactive guided setup flow.
@@ -16,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed Fastfetch config detection using correct `$env:USERPROFILE` path.
 - Added manual version input to release workflow `workflow_dispatch`.
 - Updated README to reflect interactive installer.
+
+[1.0.2]: https://github.com/Villoh/powershell-profile/compare/v1.0.1...v1.0.2
 
 ## [1.0.1] - 2026-05-21
 
