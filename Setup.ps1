@@ -221,10 +221,12 @@ function Install-RepoFile {
     }
 
     if ($asset.Type -eq 'local') {
-        Copy-Item -Path $asset.Source -Destination $Destination -Force
+        $content = Get-Content -Path $asset.Source -Raw
+        Set-Content -Path $Destination -Value $content -Encoding UTF8
         Add-Log -Section Install -Message "Copied $($asset.Source) to $Destination"
     } else {
-        Invoke-WebRequest -Uri $asset.Source -OutFile $Destination
+        $content = (Invoke-WebRequest -Uri $asset.Source).Content
+        Set-Content -Path $Destination -Value $content -Encoding UTF8
         Add-Log -Section Install -Message "Downloaded $($asset.Source) to $Destination"
     }
 }
