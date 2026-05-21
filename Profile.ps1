@@ -5,6 +5,7 @@ $script:PrettyPowerShellRoot = if ($PSCommandPath) { Split-Path -Parent $PSComma
 $script:IsInteractiveShell = $Host.Name -eq 'ConsoleHost' -and -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected
 $script:PrettyPowerShellBackupRoot = if ($PROFILE) { Join-Path (Split-Path -Parent $PROFILE) 'Backups' } else { $null }
 $script:PrettyPowerShellUserHome = if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }
+$script:UseAsciiUi = $PSVersionTable.PSEdition -ne 'Core'
 $script:PrettyPowerShellStarshipConfigPath = Join-Path $script:PrettyPowerShellUserHome '.config/starship.toml'
 $script:PrettyPowerShellFastfetchConfigPath = Join-Path $script:PrettyPowerShellUserHome '.config/fastfetch/config.jsonc'
 
@@ -368,61 +369,68 @@ function Show-Help {
     $dim      = $PSStyle.Foreground.BrightBlack
     $reset    = $PSStyle.Reset
     $installPath = Get-PrettyPowerShellInstallPath
+    $rule = if ($script:UseAsciiUi) { '----------------------------------------------------' } else { '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━' }
+    $subrule = if ($script:UseAsciiUi) { '----------------------------------------------------' } else { '────────────────────────────────────────────────────' }
+    $arrow = if ($script:UseAsciiUi) { '->' } else { '→' }
+    $helpTitle = if ($script:UseAsciiUi) { 'Pretty PowerShell Help' } else { '󰘳 Pretty PowerShell Help' }
+    $scriptTitle = if ($script:UseAsciiUi) { 'Script' } else { '󰊢 Script' }
+    $gitTitle = if ($script:UseAsciiUi) { 'Git Shortcuts' } else { '󰊢 Git Shortcuts' }
+    $systemTitle = if ($script:UseAsciiUi) { 'System Shortcuts' } else { '󰘴 System Shortcuts' }
 
     Write-Host @"
-${title}󰘳 Pretty PowerShell Help${reset}
-${dim}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${reset}
+${title}$helpTitle${reset}
+${dim}$rule${reset}
 
-${section}󰊢 Script${reset}
-${dim}────────────────────────────────────────────────────${reset}
-  ${command}Loaded from${reset}        ${accent}→${reset} ${desc}$installPath${reset}
-  ${command}Edit-Profile / ep${reset}  ${accent}→${reset} ${desc}Open profile for editing.${reset}
-  ${command}Invoke-Profile${reset}     ${accent}→${reset} ${desc}Reload current profile.${reset}
-  ${command}Update-Profile${reset}     ${accent}→${reset} ${desc}Update standalone Pretty PowerShell script.${reset}
+${section}$scriptTitle${reset}
+${dim}$subrule${reset}
+  ${command}Loaded from${reset}        ${accent}$arrow${reset} ${desc}$installPath${reset}
+  ${command}Edit-Profile / ep${reset}  ${accent}$arrow${reset} ${desc}Open profile for editing.${reset}
+  ${command}Invoke-Profile${reset}     ${accent}$arrow${reset} ${desc}Reload current profile.${reset}
+  ${command}Update-Profile${reset}     ${accent}$arrow${reset} ${desc}Update standalone Pretty PowerShell script.${reset}
 
-${section}󰊢 Git Shortcuts${reset}
-${dim}────────────────────────────────────────────────────${reset}
-  ${command}g${reset}                  ${accent}→${reset} ${desc}Changes to GitHub directory${reset}
-  ${command}ga${reset}                 ${accent}→${reset} ${desc}git add .${reset}
-  ${command}gc <message>${reset}       ${accent}→${reset} ${desc}git commit -m${reset}
-  ${command}gcl <repo>${reset}         ${accent}→${reset} ${desc}git clone${reset}
-  ${command}gcom <message>${reset}     ${accent}→${reset} ${desc}add + commit${reset}
-  ${command}gp / gpush${reset}         ${accent}→${reset} ${desc}git push${reset}
-  ${command}gpull${reset}              ${accent}→${reset} ${desc}git pull${reset}
-  ${command}gs${reset}                 ${accent}→${reset} ${desc}git status${reset}
-  ${command}lazyg <message>${reset}    ${accent}→${reset} ${desc}add + commit + push${reset}
+${section}$gitTitle${reset}
+${dim}$subrule${reset}
+  ${command}g${reset}                  ${accent}$arrow${reset} ${desc}Changes to GitHub directory${reset}
+  ${command}ga${reset}                 ${accent}$arrow${reset} ${desc}git add .${reset}
+  ${command}gc <message>${reset}       ${accent}$arrow${reset} ${desc}git commit -m${reset}
+  ${command}gcl <repo>${reset}         ${accent}$arrow${reset} ${desc}git clone${reset}
+  ${command}gcom <message>${reset}     ${accent}$arrow${reset} ${desc}add + commit${reset}
+  ${command}gp / gpush${reset}         ${accent}$arrow${reset} ${desc}git push${reset}
+  ${command}gpull${reset}              ${accent}$arrow${reset} ${desc}git pull${reset}
+  ${command}gs${reset}                 ${accent}$arrow${reset} ${desc}git status${reset}
+  ${command}lazyg <message>${reset}    ${accent}$arrow${reset} ${desc}add + commit + push${reset}
 
-${section}󰘴 System Shortcuts${reset}
-${dim}────────────────────────────────────────────────────${reset}
-  ${command}admin / su [cmd]${reset}   ${accent}→${reset} ${desc}Open elevated shell or run command.${reset}
-  ${command}cpy <text>${reset}         ${accent}→${reset} ${desc}Copy text to clipboard.${reset}
-  ${command}df${reset}                 ${accent}→${reset} ${desc}Show volumes.${reset}
-  ${command}docs${reset}               ${accent}→${reset} ${desc}Documents folder.${reset}
-  ${command}dtop${reset}               ${accent}→${reset} ${desc}Desktop folder.${reset}
-  ${command}export <k> <v>${reset}     ${accent}→${reset} ${desc}Set environment variable.${reset}
-  ${command}ff <name>${reset}          ${accent}→${reset} ${desc}Search files${reset}
-  ${command}flushdns${reset}           ${accent}→${reset} ${desc}Clear DNS cache.${reset}
-  ${command}grep <pattern> [path]${reset} ${accent}→${reset} ${desc}Search text${reset}
-  ${command}head <file>${reset}        ${accent}→${reset} ${desc}First lines${reset}
-  ${command}k9 <name>${reset}          ${accent}→${reset} ${desc}Kill process by name${reset}
-  ${command}ll / la${reset}            ${accent}→${reset} ${desc}List files${reset}
-  ${command}mkcd <dir>${reset}         ${accent}→${reset} ${desc}Create + enter dir${reset}
-  ${command}nf <name>${reset}          ${accent}→${reset} ${desc}Create new file.${reset}
-  ${command}pgrep <name>${reset}       ${accent}→${reset} ${desc}Find process by name${reset}
-  ${command}pkill <name>${reset}       ${accent}→${reset} ${desc}Stop process by name${reset}
-  ${command}pst${reset}                ${accent}→${reset} ${desc}Paste clipboard text.${reset}
-  ${command}pubip${reset}              ${accent}→${reset} ${desc}Show public IP.${reset}
-  ${command}sed <file> <find> <replace>${reset} ${accent}→${reset} ${desc}Replace text${reset}
-  ${command}sysinfo${reset}            ${accent}→${reset} ${desc}Show system info.${reset}
-  ${command}tail <file> [n]${reset}    ${accent}→${reset} ${desc}Last lines, optional follow.${reset}
-  ${command}touch <file>${reset}       ${accent}→${reset} ${desc}Create file${reset}
-  ${command}unzip <file>${reset}       ${accent}→${reset} ${desc}Extract zip${reset}
-  ${command}uptime${reset}             ${accent}→${reset} ${desc}System uptime${reset}
-  ${command}which <name>${reset}       ${accent}→${reset} ${desc}Locate command${reset}
-  ${command}winutil${reset}            ${accent}→${reset} ${desc}Run WinUtil${reset}
-  ${command}winutildev${reset}         ${accent}→${reset} ${desc}Run WinUtil Dev${reset}
+${section}$systemTitle${reset}
+${dim}$subrule${reset}
+  ${command}admin / su [cmd]${reset}   ${accent}$arrow${reset} ${desc}Open elevated shell or run command.${reset}
+  ${command}cpy <text>${reset}         ${accent}$arrow${reset} ${desc}Copy text to clipboard.${reset}
+  ${command}df${reset}                 ${accent}$arrow${reset} ${desc}Show volumes.${reset}
+  ${command}docs${reset}               ${accent}$arrow${reset} ${desc}Documents folder.${reset}
+  ${command}dtop${reset}               ${accent}$arrow${reset} ${desc}Desktop folder.${reset}
+  ${command}export <k> <v>${reset}     ${accent}$arrow${reset} ${desc}Set environment variable.${reset}
+  ${command}ff <name>${reset}          ${accent}$arrow${reset} ${desc}Search files${reset}
+  ${command}flushdns${reset}           ${accent}$arrow${reset} ${desc}Clear DNS cache.${reset}
+  ${command}grep <pattern> [path]${reset} ${accent}$arrow${reset} ${desc}Search text${reset}
+  ${command}head <file>${reset}        ${accent}$arrow${reset} ${desc}First lines${reset}
+  ${command}k9 <name>${reset}          ${accent}$arrow${reset} ${desc}Kill process by name${reset}
+  ${command}ll / la${reset}            ${accent}$arrow${reset} ${desc}List files${reset}
+  ${command}mkcd <dir>${reset}         ${accent}$arrow${reset} ${desc}Create + enter dir${reset}
+  ${command}nf <name>${reset}          ${accent}$arrow${reset} ${desc}Create new file.${reset}
+  ${command}pgrep <name>${reset}       ${accent}$arrow${reset} ${desc}Find process by name${reset}
+  ${command}pkill <name>${reset}       ${accent}$arrow${reset} ${desc}Stop process by name${reset}
+  ${command}pst${reset}                ${accent}$arrow${reset} ${desc}Paste clipboard text.${reset}
+  ${command}pubip${reset}              ${accent}$arrow${reset} ${desc}Show public IP.${reset}
+  ${command}sed <file> <find> <replace>${reset} ${accent}$arrow${reset} ${desc}Replace text${reset}
+  ${command}sysinfo${reset}            ${accent}$arrow${reset} ${desc}Show system info.${reset}
+  ${command}tail <file> [n]${reset}    ${accent}$arrow${reset} ${desc}Last lines, optional follow.${reset}
+  ${command}touch <file>${reset}       ${accent}$arrow${reset} ${desc}Create file${reset}
+  ${command}unzip <file>${reset}       ${accent}$arrow${reset} ${desc}Extract zip${reset}
+  ${command}uptime${reset}             ${accent}$arrow${reset} ${desc}System uptime${reset}
+  ${command}which <name>${reset}       ${accent}$arrow${reset} ${desc}Locate command${reset}
+  ${command}winutil${reset}            ${accent}$arrow${reset} ${desc}Run WinUtil${reset}
+  ${command}winutildev${reset}         ${accent}$arrow${reset} ${desc}Run WinUtil Dev${reset}
 
-${dim}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${reset}
+${dim}$rule${reset}
 "@
 }
 
