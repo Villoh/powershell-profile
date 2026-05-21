@@ -284,10 +284,10 @@ function Install-Dependencies {
 
 Ensure-Directory -Path $installDir
 
-if ((Test-Path $installPath) -and -not $Force) {
+if (Test-Path $installPath) {
     Backup-File -Path $installPath | Out-Null
 }
-if ((Test-Path $themePath) -and -not $Force) {
+if (Test-Path $themePath) {
     Backup-File -Path $themePath | Out-Null
 }
 

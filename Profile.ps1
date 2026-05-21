@@ -3,6 +3,7 @@
 $script:PrettyPowerShellSourcePath = $PSCommandPath
 $script:PrettyPowerShellRoot = if ($PSCommandPath) { Split-Path -Parent $PSCommandPath } else { $null }
 $script:IsInteractiveShell = $Host.Name -eq 'ConsoleHost' -and -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected
+$script:PrettyPowerShellBackupRoot = if ($PROFILE) { Join-Path (Split-Path -Parent $PROFILE) 'Backups' } else { $null }
 
 function Get-PrettyPowerShellInstallPath {
     $script:PrettyPowerShellSourcePath
@@ -16,6 +17,29 @@ function Get-PrettyPowerShellThemePath {
     ) | Where-Object { $_ }
 
     $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+}
+
+function Backup-PrettyPowerShellFile {
+    param([string]$Path)
+
+    if (-not $Path -or -not (Test-Path $Path)) {
+        return $null
+    }
+
+    if (-not $script:PrettyPowerShellBackupRoot) {
+        return $null
+    }
+
+    $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+    $fileName = Split-Path -Leaf $Path
+    $backupPath = Join-Path $script:PrettyPowerShellBackupRoot "$fileName.$timestamp.bak"
+
+    if (-not (Test-Path $script:PrettyPowerShellBackupRoot)) {
+        New-Item -Path $script:PrettyPowerShellBackupRoot -ItemType Directory -Force | Out-Null
+    }
+
+    Copy-Item -Path $Path -Destination $backupPath -Force
+    return $backupPath
 }
 
 function Initialize-PrettyPrompt {
@@ -101,6 +125,8 @@ function Update-Profile {
 
     $baseUrl = "https://raw.githubusercontent.com/Villoh/powershell-profile/$Ref"
     $themePath = if ($script:PrettyPowerShellRoot) { Join-Path $script:PrettyPowerShellRoot 'cobalt2.omp.json' } else { $null }
+    $scriptBackup = Backup-PrettyPowerShellFile -Path $installPath
+    $themeBackup = Backup-PrettyPowerShellFile -Path $themePath
 
     Invoke-WebRequest -Uri "$baseUrl/Profile.ps1" -OutFile $installPath
     if ($themePath) {
@@ -108,6 +134,12 @@ function Update-Profile {
     }
 
     Write-Host "Updated Pretty PowerShell script at $installPath" -ForegroundColor Green
+    if ($scriptBackup) {
+        Write-Host "Backup created: $scriptBackup" -ForegroundColor Yellow
+    }
+    if ($themeBackup) {
+        Write-Host "Theme backup created: $themeBackup" -ForegroundColor Yellow
+    }
 }
 
 function touch ($File) {

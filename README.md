@@ -62,7 +62,7 @@ Migration will:
 & ([scriptblock]::Create((irm https://github.com/Villoh/powershell-profile/raw/main/Setup.ps1))) -Force
 ```
 
-Use `-Force` with `-MigrateLegacyProfile` if legacy detection is inconclusive.
+Existing installed script and theme are backed up before refresh. Use `-Force` with `-MigrateLegacyProfile` if legacy detection is inconclusive.
 
 ### Preview install without changes
 
@@ -79,6 +79,8 @@ Use `-Force` with `-MigrateLegacyProfile` if legacy detection is inconclusive.
 ## Update behavior
 
 `Update-Profile` updates installed standalone script and adjacent theme file.
+
+Before overwrite, `Update-Profile`, reinstall, refresh, and `-Force` runs back up existing installed files into `~/Documents/PowerShell/Backups/`.
 
 Migration backups are stored in:
 
