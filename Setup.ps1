@@ -206,6 +206,28 @@ function Resolve-RepoAsset {
     return [pscustomobject]@{ Type = 'remote'; Source = "$repoBase/$RelativePath" }
 }
 
+function Read-Utf8File {
+    param([string]$Path)
+
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false, $true)
+    $reader = New-Object System.IO.StreamReader($Path, $utf8NoBom, $true)
+    try {
+        return $reader.ReadToEnd()
+    } finally {
+        $reader.Dispose()
+    }
+}
+
+function Write-Utf8File {
+    param(
+        [string]$Path,
+        [string]$Content
+    )
+
+    $utf8Bom = New-Object System.Text.UTF8Encoding($true)
+    [System.IO.File]::WriteAllText($Path, $Content, $utf8Bom)
+}
+
 function Install-RepoFile {
     param([string]$RelativePath, [string]$Destination)
 
@@ -221,12 +243,12 @@ function Install-RepoFile {
     }
 
     if ($asset.Type -eq 'local') {
-        $content = Get-Content -Path $asset.Source -Raw
-        Set-Content -Path $Destination -Value $content -Encoding UTF8
+        $content = Read-Utf8File -Path $asset.Source
+        Write-Utf8File -Path $Destination -Content $content
         Add-Log -Section Install -Message "Copied $($asset.Source) to $Destination"
     } else {
         $content = (Invoke-WebRequest -Uri $asset.Source).Content
-        Set-Content -Path $Destination -Value $content -Encoding UTF8
+        Write-Utf8File -Path $Destination -Content $content
         Add-Log -Section Install -Message "Downloaded $($asset.Source) to $Destination"
     }
 }
