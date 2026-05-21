@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-05-21
+
 ### Added
 
 - Added `Profile.ps1` as canonical standalone Pretty PowerShell script.
@@ -17,15 +19,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added dry-run preview mode for install and migration actions.
 - Added documentation for standalone install, migration, and dry-run workflows.
 - Added `.pi/` and `openspec/` to `.gitignore`.
+- Added backup folder `~/Documents/PowerShell/Backups/` with timestamped `.bak` files for all overwritten files.
+- Added pre-update backup in `Update-Profile` for rollback safety.
+- Added `-MigrateLegacyProfile` with legacy detection, main profile rewrite, and user sidecar merge.
+- Added Starship prompt support replacing Oh My Posh.
+- Added Starship config bootstrap with Catppuccin Powerline preset when no config exists.
+- Added fork attribution and copyright in `LICENSE` and `README.md`.
+- Added `CHANGELOG.md` following Keep a Changelog format.
+- Added GitHub Actions release workflow triggered on push to main and manual dispatch.
 
 ### Changed
 
 - Changed project architecture from repo-managed main `$PROFILE` replacement to standalone script installation.
 - Changed installer to place repo-managed logic in `PrettyPowerShell.ps1` and wire it into `$PROFILE` via dot-sourcing.
 - Changed repository script filenames to PascalCase for consistency (`Profile.ps1`, `Setup.ps1`).
-- Changed `Update-Profile` to update standalone installed script and adjacent theme file instead of replacing the user's main profile.
+- Changed `Update-Profile` to update standalone installed script instead of replacing the user's main profile.
 - Changed repository references from `ChrisTitusTech` to `Villoh` in install and update URLs.
 - Changed README to document current standalone-first architecture and migration flow.
+- Changed dependency installer from Oh My Posh to Starship.
+- Changed backup storage from alongside source files to dedicated `Backups/` folder.
+- Changed dry-run output from flat action stream to grouped sectioned summary.
 
 ### Deprecated
 
@@ -34,8 +47,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - Removed default behavior of overwriting the user's main `$PROFILE` with repo-managed profile content.
+- Removed Oh My Posh theme download and initialization.
 
 ### Fixed
 
 - Fixed long-term maintainability issue caused by mixing repo-managed profile logic with user-owned PowerShell profile content.
 - Fixed migration path for users coming from old profile layout by preserving custom `profile.ps1` content during migration.
+
+[1.0.0]: https://github.com/Villoh/powershell-profile/releases/tag/v1.0.0
