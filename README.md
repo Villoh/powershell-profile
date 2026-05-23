@@ -1,6 +1,6 @@
 # 🎨 Pretty PowerShell
 
-Pretty PowerShell is a standalone PowerShell customization script focused on safer installation, easier updates, clearer ownership boundaries, and a Starship-based prompt.
+Pretty PowerShell is a standalone PowerShell customization script that delivers a polished shell experience: Starship prompt, PSReadLine enhancements, zoxide navigation, Terminal-Icons, fastfetch, and a rich set of Unix-style utilities and git shortcuts.
 
 It now supports both Windows PowerShell 5.1 and PowerShell 7+.
 
