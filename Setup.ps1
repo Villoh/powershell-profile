@@ -161,9 +161,9 @@ function Invoke-InteractiveMultiSelect {
                 'DownArrow' { if ($cursor -lt $optionCount - 1) { $cursor++; Render } }
                 'Spacebar'  {
                     if ($selected -contains $cursor) {
-                        $selected = $selected | Where-Object { $_ -ne $cursor }
+                        $selected = @($selected | Where-Object { $_ -ne $cursor })
                     } else {
-                        $selected += $cursor
+                        $selected = @($selected) + $cursor
                     }
                     Render
                 }
@@ -573,13 +573,24 @@ function Install-Fastfetch {
 function Set-WindowsTerminalFont {
     param([string]$FontFace = 'CaskaydiaCove Nerd Font')
 
-    if (-not (Test-Path $wtSettingsPath)) {
-        Add-Log -Section Install -Message 'Windows Terminal settings not found; skipped font patch.'
+    if ($DryRun) {
+        Add-Log -Section Install -Message 'Would install CaskaydiaCove Nerd Font via winget.'
+        if (Test-Path $wtSettingsPath) {
+            Add-Log -Section Install -Message "Would patch Windows Terminal font to '$FontFace' in: $wtSettingsPath"
+        }
         return
     }
 
-    if ($DryRun) {
-        Add-Log -Section Install -Message "Would patch Windows Terminal font to '$FontFace' in: $wtSettingsPath"
+    if (Get-Command winget -ErrorAction SilentlyContinue) {
+        winget install --id DEVCOM.CascadiaCodeNerdFont --source winget --silent
+        Add-Log -Section Dependencies -Message 'Installed CaskaydiaCove Nerd Font via winget.'
+    } else {
+        Add-Log -Section Dependencies -Message 'winget not found. Install CaskaydiaCove Nerd Font manually.'
+        Write-Warning 'winget not found. Install CaskaydiaCove Nerd Font manually.'
+    }
+
+    if (-not (Test-Path $wtSettingsPath)) {
+        Add-Log -Section Install -Message 'Windows Terminal settings not found; skipped font patch.'
         return
     }
 
@@ -603,22 +614,21 @@ function Copy-WindowsTerminalConfig {
 }
 
 function Install-Extras {
-    param([bool]$Zoxide, [bool]$JetBrainsMono)
+    param([bool]$Zoxide)
 
-    if (-not $Zoxide -and -not $JetBrainsMono) { return }
+    if (-not $Zoxide) { return }
 
     if ($DryRun) {
-        if ($Zoxide)       { Add-Log -Section Dependencies -Message 'Would install zoxide via winget.' }
-        if ($JetBrainsMono){ Add-Log -Section Dependencies -Message 'Would install JetBrainsMono Nerd Font via winget.' }
+        Add-Log -Section Dependencies -Message 'Would install zoxide via winget.'
         return
     }
 
     if (Get-Command winget -ErrorAction SilentlyContinue) {
-        if ($Zoxide)        { winget install --id ajeetdsouza.zoxide --source winget --silent; Add-Log -Section Dependencies -Message 'Installed zoxide via winget.' }
-        if ($JetBrainsMono) { winget install --id DEVCOM.JetBrainsMonoNerdFont --source winget --silent; Add-Log -Section Dependencies -Message 'Installed JetBrainsMono Nerd Font via winget.' }
+        winget install --id ajeetdsouza.zoxide --source winget --silent
+        Add-Log -Section Dependencies -Message 'Installed zoxide via winget.'
     } else {
-        Add-Log -Section Dependencies -Message 'winget not found. Install extras manually.'
-        Write-Warning 'winget not found. Install extras manually.'
+        Add-Log -Section Dependencies -Message 'winget not found. Install zoxide manually.'
+        Write-Warning 'winget not found. Install zoxide manually.'
     }
 }
 
@@ -659,10 +669,9 @@ if (-not $DryRun -and -not $Force) {
     Write-Host ''
     $doFastfetch  = Invoke-InteractiveBool 'Install and configure Fastfetch?' $true
     Write-Host ''
-    $extrasOptions = @('zoxide', 'JetBrainsMono Nerd Font')
-    $extrasIdx     = Invoke-InteractiveMultiSelect -Question 'Select extras to install:' -Options $extrasOptions -Defaults @(0, 1)
+    $extrasOptions = @('zoxide')
+    $extrasIdx     = Invoke-InteractiveMultiSelect -Question 'Select extras to install:' -Options $extrasOptions -Defaults @(0)
     $doZoxide      = $extrasIdx -contains 0
-    $doJetBrains   = $extrasIdx -contains 1
 
     Write-Host ''
     $doWtFullConfig = Invoke-InteractiveBool 'Use my Windows Terminal config?' $false
@@ -680,7 +689,6 @@ if (-not $DryRun -and -not $Force) {
     $doStarship  = $true
     $doFastfetch = $true
     $doZoxide       = $true
-    $doJetBrains    = $false
     $doWtFullConfig = $false
 }
 
@@ -701,7 +709,7 @@ Install-RepoFile -RelativePath 'Profile.ps1' -Destination $installPath
 Install-TerminalIcons
 if ($doStarship)  { Install-Starship; Ensure-StarshipConfig | Out-Null }
 if ($doFastfetch) { Install-Fastfetch; Ensure-FastfetchConfig | Out-Null }
-Install-Extras -Zoxide $doZoxide -JetBrainsMono $doJetBrains
+Install-Extras -Zoxide $doZoxide
 if ($doWtFullConfig) { Copy-WindowsTerminalConfig } else { Set-WindowsTerminalFont }
 
 $migrationResult = if ($doMigrate) {

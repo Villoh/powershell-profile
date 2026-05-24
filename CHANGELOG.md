@@ -12,10 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added `windowsterminal/settings.json` to repo as recommended Windows Terminal config.
-- Added `Set-WindowsTerminalFont` to surgically patch `defaults.font.face` in the existing Windows Terminal `settings.json` (always runs during install).
+- Added `Set-WindowsTerminalFont` to install CaskaydiaCove Nerd Font via winget and surgically patch `defaults.font.face` in the existing Windows Terminal `settings.json` (always runs during install).
 - Added `Copy-WindowsTerminalConfig` to replace Windows Terminal config with the repo config (opt-in).
 - Added **"Use my Windows Terminal config?"** prompt to installer.
 - Windows Terminal `settings.json` is now backed up on every install run.
+
+### Changed
+
+- Removed JetBrainsMono Nerd Font from extras — CaskaydiaCove Nerd Font is now installed as part of the Windows Terminal setup step.
+- Extras selector now only contains zoxide.
+- Fixed multi-select toggle bug where deselecting an item prevented reselecting it.
 
 [1.1.3]: https://github.com/Villoh/powershell-profile/compare/v1.1.2...v1.1.3
 
