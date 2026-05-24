@@ -165,7 +165,7 @@ function Get-PrettyPowerShellEditor {
 
 function Edit-Profile {
     $editor = Get-PrettyPowerShellEditor
-    & $editor $PROFILE.CurrentUserAllHosts
+    & $editor $script:PrettyPowerShellSourcePath
 }
 
 Set-Alias -Name ep -Value Edit-Profile
