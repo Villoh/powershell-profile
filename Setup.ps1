@@ -571,10 +571,10 @@ function Install-Fastfetch {
 }
 
 function Set-WindowsTerminalFont {
-    param([string]$FontFace = 'CaskaydiaCove Nerd Font')
+    param([string]$FontFace = 'JetBrainsMono Nerd Font')
 
     if ($DryRun) {
-        Add-Log -Section Install -Message 'Would install CaskaydiaCove Nerd Font via winget.'
+        Add-Log -Section Install -Message 'Would install JetBrainsMono Nerd Font via winget.'
         if (Test-Path $wtSettingsPath) {
             Add-Log -Section Install -Message "Would patch Windows Terminal font to '$FontFace' in: $wtSettingsPath"
         }
@@ -582,11 +582,11 @@ function Set-WindowsTerminalFont {
     }
 
     if (Get-Command winget -ErrorAction SilentlyContinue) {
-        winget install --id DEVCOM.CascadiaCodeNerdFont --source winget --silent
-        Add-Log -Section Dependencies -Message 'Installed CaskaydiaCove Nerd Font via winget.'
+        winget install --id DEVCOM.JetBrainsMonoNerdFont --source winget --silent
+        Add-Log -Section Dependencies -Message 'Installed JetBrainsMono Nerd Font via winget.'
     } else {
-        Add-Log -Section Dependencies -Message 'winget not found. Install CaskaydiaCove Nerd Font manually.'
-        Write-Warning 'winget not found. Install CaskaydiaCove Nerd Font manually.'
+        Add-Log -Section Dependencies -Message 'winget not found. Install JetBrainsMono Nerd Font manually.'
+        Write-Warning 'winget not found. Install JetBrainsMono Nerd Font manually.'
     }
 
     if (-not (Test-Path $wtSettingsPath)) {
@@ -707,10 +707,16 @@ if (Test-Path $wtSettingsPath) { Backup-File -Path $wtSettingsPath -BackupDir $b
 Install-RepoFile -RelativePath 'Profile.ps1' -Destination $installPath
 
 Install-TerminalIcons
-if ($doStarship)  { Install-Starship; Ensure-StarshipConfig | Out-Null }
-if ($doFastfetch) { Install-Fastfetch; Ensure-FastfetchConfig | Out-Null }
+if ($doStarship)  { Install-Starship }
+if ($doFastfetch) { Install-Fastfetch }
 Install-Extras -Zoxide $doZoxide
 if ($doWtFullConfig) { Copy-WindowsTerminalConfig } else { Set-WindowsTerminalFont }
+
+# Refresh PATH so newly installed tools are visible in the current session
+$env:PATH = [System.Environment]::GetEnvironmentVariable('PATH', 'Machine') + ';' + [System.Environment]::GetEnvironmentVariable('PATH', 'User')
+
+if ($doStarship)  { Ensure-StarshipConfig | Out-Null }
+if ($doFastfetch) { Ensure-FastfetchConfig | Out-Null }
 
 $migrationResult = if ($doMigrate) {
     Migrate-LegacyProfile -ScriptPath $installPath -BackupDir $backupDir -ForceMigration:$Force

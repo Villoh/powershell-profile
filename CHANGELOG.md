@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.4] - 2026-05-24
+
+### Changed
+
+- Switched Windows Terminal default font from CaskaydiaCove to JetBrainsMono Nerd Font (CaskaydiaCove is not available via winget).
+- Refreshed `$env:PATH` after winget installs so Starship and Fastfetch are found in the same session without restarting.
+
+### Fixed
+
+- Fixed incorrect winget ID `DEVCOM.CascadiaCodeNerdFont` replaced with `DEVCOM.JetBrainsMonoNerdFont`.
+
+[1.1.4]: https://github.com/Villoh/powershell-profile/compare/v1.1.3...v1.1.4
+
 ## [1.1.3] - 2026-05-24
 
 ### Added

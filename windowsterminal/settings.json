@@ -240,7 +240,7 @@
             "colorScheme": "catppuccin-mocha",
             "font":
             {
-                "face": "CaskaydiaCove Nerd Font"
+                "face": "JetBrainsMono Nerd Font"
             },
             "opacity": 95
         },
@@ -384,3 +384,4 @@
         }
     ]
 }
+
