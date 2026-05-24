@@ -531,11 +531,11 @@ if (-not $DryRun -and -not $Force) {
     Write-Host ''
     $doMigrate   = if ($isLegacy) { Invoke-InteractiveBool "Legacy profile detected. Migrate to loader-based layout?" $true } else { $false }
     Write-Host ''
-    $doStarship  = Invoke-InteractiveBool 'Bootstrap Starship config if missing?' $false
+    $doStarship  = Invoke-InteractiveBool 'Bootstrap Starship config if missing?' $true
     Write-Host ''
-    $doFastfetch = Invoke-InteractiveBool 'Bootstrap Fastfetch config if missing?' $false
+    $doFastfetch = Invoke-InteractiveBool 'Bootstrap Fastfetch config if missing?' $true
     Write-Host ''
-    $doDeps      = Invoke-InteractiveBool 'Install dependencies (Starship, fastfetch, zoxide, JetBrainsMono)?' $false
+    $doDeps      = Invoke-InteractiveBool 'Install dependencies (Starship, fastfetch, zoxide, JetBrainsMono)?' $true
 
     Write-Host ''
     Write-Host $rule -ForegroundColor Cyan
