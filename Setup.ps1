@@ -306,7 +306,7 @@ function Install-RepoFile {
         Write-Utf8File -Path $Destination -Content $content -NoBom:$NoBom
         Add-Log -Section Install -Message "Copied $($asset.Source) to $Destination"
     } else {
-        $content = (Invoke-WebRequest -Uri $asset.Source).Content
+        $content = (Invoke-WebRequest -Uri $asset.Source -UseBasicParsing).Content
         Write-Utf8File -Path $Destination -Content $content -NoBom:$NoBom
         Add-Log -Section Install -Message "Downloaded $($asset.Source) to $Destination"
     }
@@ -710,7 +710,8 @@ Install-TerminalIcons
 if ($doStarship)  { Install-Starship }
 if ($doFastfetch) { Install-Fastfetch }
 Install-Extras -Zoxide $doZoxide
-if ($doWtFullConfig) { Copy-WindowsTerminalConfig } else { Set-WindowsTerminalFont }
+Set-WindowsTerminalFont
+if ($doWtFullConfig) { Copy-WindowsTerminalConfig }
 
 # Refresh PATH so newly installed tools are visible in the current session
 $env:PATH = [System.Environment]::GetEnvironmentVariable('PATH', 'Machine') + ';' + [System.Environment]::GetEnvironmentVariable('PATH', 'User')
