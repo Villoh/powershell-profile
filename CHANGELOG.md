@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.3] - 2026-05-24
+
+### Added
+
+- Added `windowsterminal/settings.json` to repo as recommended Windows Terminal config.
+- Added `Set-WindowsTerminalFont` to surgically patch `defaults.font.face` in the existing Windows Terminal `settings.json` (always runs during install).
+- Added `Copy-WindowsTerminalConfig` to replace Windows Terminal config with the repo config (opt-in).
+- Added **"Use my Windows Terminal config?"** prompt to installer.
+- Windows Terminal `settings.json` is now backed up on every install run.
+
+[1.1.3]: https://github.com/Villoh/powershell-profile/compare/v1.1.2...v1.1.3
+
 ## [1.1.2] - 2026-05-24
 
 ### Fixed

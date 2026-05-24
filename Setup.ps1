@@ -14,6 +14,7 @@ $starshipConfigDir = Join-Path $userHome '.config'
 $starshipConfigPath = Join-Path $starshipConfigDir 'starship.toml'
 $fastfetchConfigDir = Join-Path $userHome '.config/fastfetch'
 $fastfetchConfigPath = Join-Path $fastfetchConfigDir 'config.jsonc'
+$wtSettingsPath = Join-Path $userHome 'AppData\Local\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json'
 $customProfilePath = Join-Path $powerShellRoot 'profile.ps1'
 $backupRootDir = Join-Path $powerShellRoot 'Backups'
 $script:BackupTimestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
@@ -569,6 +570,38 @@ function Install-Fastfetch {
     }
 }
 
+function Set-WindowsTerminalFont {
+    param([string]$FontFace = 'CaskaydiaCove Nerd Font')
+
+    if (-not (Test-Path $wtSettingsPath)) {
+        Add-Log -Section Install -Message 'Windows Terminal settings not found; skipped font patch.'
+        return
+    }
+
+    if ($DryRun) {
+        Add-Log -Section Install -Message "Would patch Windows Terminal font to '$FontFace' in: $wtSettingsPath"
+        return
+    }
+
+    $json = Get-Content $wtSettingsPath -Raw | ConvertFrom-Json
+    if (-not $json.profiles) { $json | Add-Member -NotePropertyName 'profiles' -NotePropertyValue ([pscustomobject]@{}) }
+    if (-not $json.profiles.defaults) { $json.profiles | Add-Member -NotePropertyName 'defaults' -NotePropertyValue ([pscustomobject]@{}) }
+    if (-not $json.profiles.defaults.font) { $json.profiles.defaults | Add-Member -NotePropertyName 'font' -NotePropertyValue ([pscustomobject]@{}) }
+    $json.profiles.defaults.font | Add-Member -NotePropertyName 'face' -NotePropertyValue $FontFace -Force
+    $json | ConvertTo-Json -Depth 10 | Set-Content -Path $wtSettingsPath -Encoding UTF8
+    Add-Log -Section Install -Message "Patched Windows Terminal font to '$FontFace'."
+}
+
+function Copy-WindowsTerminalConfig {
+    if ($DryRun) {
+        Add-Log -Section Install -Message "Would copy repo Windows Terminal config to: $wtSettingsPath"
+        return
+    }
+
+    Install-RepoFile -RelativePath 'windowsterminal/settings.json' -Destination $wtSettingsPath -NoBom
+    Add-Log -Section Install -Message "Copied repo Windows Terminal config to: $wtSettingsPath"
+}
+
 function Install-Extras {
     param([bool]$Zoxide, [bool]$JetBrainsMono)
 
@@ -592,7 +625,6 @@ function Install-Extras {
 # ─── Interactive setup ────────────────────────────────────────────────────────
 
 $isLegacy = Test-LegacyManagedProfile
-$legacyLabel = if ($isLegacy) { ' (legacy profile detected)' } else { '' }
 
 if (-not $DryRun -and -not $Force) {
     Write-Host ''
@@ -633,6 +665,9 @@ if (-not $DryRun -and -not $Force) {
     $doJetBrains   = $extrasIdx -contains 1
 
     Write-Host ''
+    $doWtFullConfig = Invoke-InteractiveBool 'Use my Windows Terminal config?' $false
+
+    Write-Host ''
     Write-Host $rule -ForegroundColor Cyan
     Write-Host '  Press Enter to install or Ctrl+C to cancel.' -ForegroundColor White
     Write-Host $rule -ForegroundColor Cyan
@@ -644,8 +679,9 @@ if (-not $DryRun -and -not $Force) {
     $doMigrate   = $isLegacy
     $doStarship  = $true
     $doFastfetch = $true
-    $doZoxide    = $true
-    $doJetBrains = $false
+    $doZoxide       = $true
+    $doJetBrains    = $false
+    $doWtFullConfig = $false
 }
 
 $installPath = Join-Path $installDir 'PrettyPowerShell.ps1'
@@ -658,6 +694,7 @@ Ensure-Directory -Path $installDir
 if (Test-Path $installPath) { Backup-File -Path $installPath -BackupDir $backupDir | Out-Null }
 if (Test-Path $starshipConfigPath) { Backup-File -Path $starshipConfigPath -BackupDir $backupDir | Out-Null }
 if (Test-Path $fastfetchConfigDir) { Backup-Directory -Path $fastfetchConfigDir -Name 'fastfetch' -BackupDir $backupDir | Out-Null }
+if (Test-Path $wtSettingsPath) { Backup-File -Path $wtSettingsPath -BackupDir $backupDir | Out-Null }
 
 Install-RepoFile -RelativePath 'Profile.ps1' -Destination $installPath
 
@@ -665,6 +702,7 @@ Install-TerminalIcons
 if ($doStarship)  { Install-Starship; Ensure-StarshipConfig | Out-Null }
 if ($doFastfetch) { Install-Fastfetch; Ensure-FastfetchConfig | Out-Null }
 Install-Extras -Zoxide $doZoxide -JetBrainsMono $doJetBrains
+if ($doWtFullConfig) { Copy-WindowsTerminalConfig } else { Set-WindowsTerminalFont }
 
 $migrationResult = if ($doMigrate) {
     Migrate-LegacyProfile -ScriptPath $installPath -BackupDir $backupDir -ForceMigration:$Force
@@ -681,6 +719,7 @@ $migrationResult = if ($doMigrate) {
 
 Add-Log -Section Result -Message "Standalone script: $installPath"
 Add-Log -Section Result -Message "Starship config: $starshipConfigPath"
+Add-Log -Section Result -Message "Windows Terminal config: $wtSettingsPath"
 
 if ($migrationResult.Migrated) {
     if ($migrationResult.MainProfileBackup) {
