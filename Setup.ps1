@@ -337,10 +337,10 @@ function Ensure-ProfileLoader {
     $loaderBlock = (Get-LoaderBlock -ScriptPath $ScriptPath).TrimEnd()
     $loaderPattern = "(?ms)^# Pretty PowerShell loader\r?\nif \(Test-Path '[^']+'\) \{\r?\n    \. '[^']+'\r?\n\}\r?\n?"
     $current = if (Test-Path $PROFILE) { Get-Content $PROFILE -Raw } else { '' }
-    $matches = [regex]::Matches($current, $loaderPattern)
+    $loaderMatches = [regex]::Matches($current, $loaderPattern)
 
-    if ($matches.Count -gt 0) {
-        $firstMatch = $matches[0]
+    if ($loaderMatches.Count -gt 0) {
+        $firstMatch = $loaderMatches[0]
         $prefix = $current.Substring(0, $firstMatch.Index)
         $suffix = $current.Substring($firstMatch.Index + $firstMatch.Length)
         $suffix = [regex]::Replace($suffix, $loaderPattern, '')

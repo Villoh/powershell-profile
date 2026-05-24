@@ -75,7 +75,7 @@ jobs:
       - name: Run PSScriptAnalyzer
         shell: pwsh
         run: |
-          $issues = Invoke-ScriptAnalyzer -Path . -Recurse
+          $issues = Invoke-ScriptAnalyzer -Path . -Recurse -Settings PSScriptAnalyzerSettings.psd1
           if (-not $issues) {
             Write-Host 'PSScriptAnalyzer found no issues.'
             exit 0
