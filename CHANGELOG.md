@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-05-24
+
+### Fixed
+
+- Fixed fastfetch `config.jsonc` and `ascii.txt` being written with UTF-8 BOM, which fastfetch does not support.
+
+[1.1.2]: https://github.com/Villoh/powershell-profile/compare/v1.1.1...v1.1.2
+
 ## [1.1.1] - 2026-05-24
 
 ### Fixed

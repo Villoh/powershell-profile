@@ -278,15 +278,16 @@ function Read-Utf8File {
 function Write-Utf8File {
     param(
         [string]$Path,
-        [string]$Content
+        [string]$Content,
+        [switch]$NoBom
     )
 
-    $utf8Bom = New-Object System.Text.UTF8Encoding($true)
-    [System.IO.File]::WriteAllText($Path, $Content, $utf8Bom)
+    $encoding = if ($NoBom) { New-Object System.Text.UTF8Encoding($false) } else { New-Object System.Text.UTF8Encoding($true) }
+    [System.IO.File]::WriteAllText($Path, $Content, $encoding)
 }
 
 function Install-RepoFile {
-    param([string]$RelativePath, [string]$Destination)
+    param([string]$RelativePath, [string]$Destination, [switch]$NoBom)
 
     $asset = Resolve-RepoAsset -RelativePath $RelativePath
 
@@ -301,11 +302,11 @@ function Install-RepoFile {
 
     if ($asset.Type -eq 'local') {
         $content = Read-Utf8File -Path $asset.Source
-        Write-Utf8File -Path $Destination -Content $content
+        Write-Utf8File -Path $Destination -Content $content -NoBom:$NoBom
         Add-Log -Section Install -Message "Copied $($asset.Source) to $Destination"
     } else {
         $content = (Invoke-WebRequest -Uri $asset.Source).Content
-        Write-Utf8File -Path $Destination -Content $content
+        Write-Utf8File -Path $Destination -Content $content -NoBom:$NoBom
         Add-Log -Section Install -Message "Downloaded $($asset.Source) to $Destination"
     }
 }
@@ -492,8 +493,8 @@ function Ensure-FastfetchConfig {
     }
 
     Ensure-Directory -Path $fastfetchConfigDir
-    Install-RepoFile -RelativePath 'fastfetch/config.jsonc' -Destination $fastfetchConfigPath
-    Install-RepoFile -RelativePath 'fastfetch/ascii.txt' -Destination (Join-Path $fastfetchConfigDir 'ascii.txt')
+    Install-RepoFile -RelativePath 'fastfetch/config.jsonc' -Destination $fastfetchConfigPath -NoBom
+    Install-RepoFile -RelativePath 'fastfetch/ascii.txt' -Destination (Join-Path $fastfetchConfigDir 'ascii.txt') -NoBom
     Add-Log -Section Install -Message "Initialized fastfetch config at $fastfetchConfigDir"
     return $true
 }
