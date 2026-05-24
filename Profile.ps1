@@ -1,5 +1,9 @@
 ### Pretty PowerShell standalone script
 
+# Feature flags - set to $false to disable
+$script:EnableStarship  = $true
+$script:EnableFastfetch = $true
+
 $script:PrettyPowerShellSourcePath = $PSCommandPath
 $script:PrettyPowerShellRoot = if ($PSCommandPath) { Split-Path -Parent $PSCommandPath } else { $null }
 $script:IsInteractiveShell = $Host.Name -eq 'ConsoleHost' -and -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected
@@ -46,7 +50,7 @@ function Backup-PrettyPowerShellFile {
 }
 
 function Initialize-PrettyPrompt {
-    if (-not $script:IsInteractiveShell) {
+    if (-not $script:IsInteractiveShell -or -not $script:EnableStarship) {
         return
     }
 
@@ -440,10 +444,12 @@ Initialize-PrettyModules
 Initialize-PrettyReadLine
 
 if ($script:IsInteractiveShell) {
-    $fastfetchExe = Get-Command fastfetch -CommandType Application -ErrorAction Ignore |
-        Select-Object -First 1 -ExpandProperty Source
-    if ($fastfetchExe -and (Test-Path $script:PrettyPowerShellFastfetchConfigPath)) {
-        & $fastfetchExe --config $script:PrettyPowerShellFastfetchConfigPath
+    if ($script:EnableFastfetch) {
+        $fastfetchExe = Get-Command fastfetch -CommandType Application -ErrorAction Ignore |
+            Select-Object -First 1 -ExpandProperty Source
+        if ($fastfetchExe -and (Test-Path $script:PrettyPowerShellFastfetchConfigPath)) {
+            & $fastfetchExe --config $script:PrettyPowerShellFastfetchConfigPath
+        }
     }
 
     Write-Host "Use 'Show-Help' to list all available functions" -ForegroundColor Yellow

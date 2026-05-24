@@ -40,9 +40,10 @@ Installer is interactive. It guides you through:
 
 1. Install location
 2. Legacy profile migration (auto-detected)
-3. Starship config bootstrap (opt-in)
-4. Fastfetch config bootstrap (opt-in)
-5. Dependency installation (opt-in)
+3. Install and configure Starship (opt-in, recommended)
+4. Install and configure Fastfetch (opt-in, recommended)
+5. Terminal-Icons (installed automatically)
+6. Extras: zoxide, JetBrainsMono Nerd Font (multi-select)
 
 ## Flags
 
@@ -95,18 +96,26 @@ On interactive shell:
 
 Windows PowerShell automatically uses ASCII-safe installer and help UI plus compatible PSReadLine settings.
 
+## Feature flags
+
+To disable Starship or Fastfetch after install, edit `PrettyPowerShell.ps1` (use `ep` or `Edit-Profile`) and set:
+
+```powershell
+$script:EnableStarship  = $false
+$script:EnableFastfetch = $false
+```
+
+This is useful if you want to use a different prompt (e.g. Oh My Posh) or a different fetch tool.
+
 ## Recommended extras
 
 - `JetBrainsMono Nerd Font`
-- `Starship`
-- `fastfetch`
 - `zoxide`
-- `Terminal-Icons`
 
-Install all via installer dependency option or manually:
+Install manually if skipped during setup:
 
 ```powershell
-winget install Starship.Starship fastfetch-cli.fastfetch ajeetdsouza.zoxide DEVCOM.JetBrainsMonoNerdFont
+winget install ajeetdsouza.zoxide DEVCOM.JetBrainsMonoNerdFont
 ```
 
 ## Project support

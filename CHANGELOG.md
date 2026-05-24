@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-05-24
+
+### Added
+
+- Added `$script:EnableStarship` and `$script:EnableFastfetch` feature flags in `Profile.ps1` to allow disabling Starship or Fastfetch without reinstalling.
+- Added `Invoke-InteractiveMultiSelect` to `Setup.ps1` for multi-select extras picker (zoxide, JetBrainsMono Nerd Font).
+
+### Changed
+
+- Split `Install-Dependencies` into focused functions: `Install-TerminalIcons`, `Install-Starship`, `Install-Fastfetch`, and `Install-Extras`.
+- Terminal-Icons is now installed unconditionally as a mandatory dependency.
+- Installer questions for Starship and Fastfetch now cover both install and config bootstrap in a single step ("Install and configure Starship?", "Install and configure Fastfetch?").
+- Extras (zoxide, JetBrainsMono) moved to a dedicated multi-select prompt, both pre-selected by default.
+- All installer prompts now default to Yes.
+
+[1.1.0]: https://github.com/Villoh/powershell-profile/compare/v1.0.3...v1.1.0
+
 ## [1.0.3] - 2026-05-21
 
 ### Added

@@ -117,6 +117,63 @@ function Invoke-InteractiveMenu {
     }
 }
 
+function Invoke-InteractiveMultiSelect {
+    param(
+        [string]$Question,
+        [string[]]$Options,
+        [int[]]$Defaults = @()
+    )
+
+    $optionCount = $Options.Count
+    $selected = @()
+    foreach ($d in $Defaults) { $selected += $d }
+    $cursor = 0
+
+    function Render {
+        $top = [Console]::CursorTop - $optionCount
+        for ($i = 0; $i -lt $optionCount; $i++) {
+            [Console]::SetCursorPosition(0, $top + $i)
+            $checked = if ($selected -contains $i) { if ($script:UseAsciiUi) { '[x]' } else { '[x]' } } else { '[ ]' }
+            $marker  = if ($i -eq $cursor) { (Get-UiPointer) } else { ' ' }
+            $color   = if ($i -eq $cursor) { 'Cyan' } else { 'Gray' }
+            $line = "  $marker $checked $($Options[$i])"
+            Write-Host ($line.PadRight([Console]::WindowWidth - 1)) -ForegroundColor $color -NoNewline
+        }
+        [Console]::SetCursorPosition(0, $top + $optionCount)
+    }
+
+    Write-Host $Question -ForegroundColor White
+    Write-Host '  (Space to toggle, Enter to confirm)' -ForegroundColor DarkGray
+    for ($i = 0; $i -lt $optionCount; $i++) {
+        $checked = if ($selected -contains $i) { '[x]' } else { '[ ]' }
+        $marker  = if ($i -eq $cursor) { (Get-UiPointer) } else { ' ' }
+        $color   = if ($i -eq $cursor) { 'Cyan' } else { 'Gray' }
+        Write-Host "  $marker $checked $($Options[$i])" -ForegroundColor $color
+    }
+
+    [Console]::CursorVisible = $false
+    try {
+        while ($true) {
+            $key = [Console]::ReadKey($true)
+            switch ($key.Key) {
+                'UpArrow'   { if ($cursor -gt 0) { $cursor--; Render } }
+                'DownArrow' { if ($cursor -lt $optionCount - 1) { $cursor++; Render } }
+                'Spacebar'  {
+                    if ($selected -contains $cursor) {
+                        $selected = $selected | Where-Object { $_ -ne $cursor }
+                    } else {
+                        $selected += $cursor
+                    }
+                    Render
+                }
+                'Enter'     { Write-Host ''; return $selected }
+            }
+        }
+    } finally {
+        [Console]::CursorVisible = $true
+    }
+}
+
 function Invoke-InteractiveBool {
     param(
         [string]$Question,
@@ -465,16 +522,9 @@ function Ensure-StarshipConfig {
     return $true
 }
 
-function Install-Dependencies {
-    param([switch]$WingetOnly)
-
+function Install-TerminalIcons {
     if ($DryRun) {
         Add-Log -Section Dependencies -Message 'Would install Terminal-Icons module.'
-        if (Get-Command winget -ErrorAction SilentlyContinue) {
-            Add-Log -Section Dependencies -Message 'Would install Starship, fastfetch, zoxide, and JetBrainsMono Nerd Font via winget.'
-        } else {
-            Add-Log -Section Dependencies -Message 'Would require manual install of Starship, fastfetch, zoxide, and JetBrainsMono Nerd Font (winget not found).'
-        }
         return
     }
 
@@ -485,15 +535,55 @@ function Install-Dependencies {
         Add-Log -Section Dependencies -Message "Terminal-Icons install failed: $($_.Exception.Message)"
         Write-Warning "Terminal-Icons install failed: $($_.Exception.Message)"
     }
+}
+
+function Install-Starship {
+    if ($DryRun) {
+        Add-Log -Section Dependencies -Message $(if (Get-Command winget -ErrorAction SilentlyContinue) { 'Would install Starship via winget.' } else { 'Would require manual install of Starship (winget not found).' })
+        return
+    }
 
     if (Get-Command winget -ErrorAction SilentlyContinue) {
         winget install --id Starship.Starship --source winget --silent
-        winget install --id fastfetch-cli.fastfetch --source winget --silent
-        winget install ajeetdsouza.zoxide DEVCOM.JetBrainsMonoNerdFont --source winget --silent
-        Add-Log -Section Dependencies -Message 'Installed Starship, fastfetch, zoxide, and JetBrainsMono Nerd Font via winget.'
+        Add-Log -Section Dependencies -Message 'Installed Starship via winget.'
     } else {
-        Add-Log -Section Dependencies -Message 'winget not found. Install Starship, fastfetch, zoxide, and JetBrainsMono Nerd Font manually.'
-        Write-Warning 'winget not found. Install Starship, fastfetch, zoxide, and JetBrainsMono Nerd Font manually if needed.'
+        Add-Log -Section Dependencies -Message 'winget not found. Install Starship manually.'
+        Write-Warning 'winget not found. Install Starship manually.'
+    }
+}
+
+function Install-Fastfetch {
+    if ($DryRun) {
+        Add-Log -Section Dependencies -Message $(if (Get-Command winget -ErrorAction SilentlyContinue) { 'Would install fastfetch via winget.' } else { 'Would require manual install of fastfetch (winget not found).' })
+        return
+    }
+
+    if (Get-Command winget -ErrorAction SilentlyContinue) {
+        winget install --id fastfetch-cli.fastfetch --source winget --silent
+        Add-Log -Section Dependencies -Message 'Installed fastfetch via winget.'
+    } else {
+        Add-Log -Section Dependencies -Message 'winget not found. Install fastfetch manually.'
+        Write-Warning 'winget not found. Install fastfetch manually.'
+    }
+}
+
+function Install-Extras {
+    param([bool]$Zoxide, [bool]$JetBrainsMono)
+
+    if (-not $Zoxide -and -not $JetBrainsMono) { return }
+
+    if ($DryRun) {
+        if ($Zoxide)       { Add-Log -Section Dependencies -Message 'Would install zoxide via winget.' }
+        if ($JetBrainsMono){ Add-Log -Section Dependencies -Message 'Would install JetBrainsMono Nerd Font via winget.' }
+        return
+    }
+
+    if (Get-Command winget -ErrorAction SilentlyContinue) {
+        if ($Zoxide)        { winget install --id ajeetdsouza.zoxide --source winget --silent; Add-Log -Section Dependencies -Message 'Installed zoxide via winget.' }
+        if ($JetBrainsMono) { winget install --id DEVCOM.JetBrainsMonoNerdFont --source winget --silent; Add-Log -Section Dependencies -Message 'Installed JetBrainsMono Nerd Font via winget.' }
+    } else {
+        Add-Log -Section Dependencies -Message 'winget not found. Install extras manually.'
+        Write-Warning 'winget not found. Install extras manually.'
     }
 }
 
@@ -529,13 +619,16 @@ if (-not $DryRun -and -not $Force) {
     }
 
     Write-Host ''
-    $doMigrate   = if ($isLegacy) { Invoke-InteractiveBool "Legacy profile detected. Migrate to loader-based layout?" $true } else { $false }
+    $doMigrate    = if ($isLegacy) { Invoke-InteractiveBool 'Legacy profile detected. Migrate to loader-based layout?' $true } else { $false }
     Write-Host ''
-    $doStarship  = Invoke-InteractiveBool 'Bootstrap Starship config if missing?' $true
+    $doStarship   = Invoke-InteractiveBool 'Install and configure Starship?' $true
     Write-Host ''
-    $doFastfetch = Invoke-InteractiveBool 'Bootstrap Fastfetch config if missing?' $true
+    $doFastfetch  = Invoke-InteractiveBool 'Install and configure Fastfetch?' $true
     Write-Host ''
-    $doDeps      = Invoke-InteractiveBool 'Install dependencies (Starship, fastfetch, zoxide, JetBrainsMono)?' $true
+    $extrasOptions = @('zoxide', 'JetBrainsMono Nerd Font')
+    $extrasIdx     = Invoke-InteractiveMultiSelect -Question 'Select extras to install:' -Options $extrasOptions -Defaults @(0, 1)
+    $doZoxide      = $extrasIdx -contains 0
+    $doJetBrains   = $extrasIdx -contains 1
 
     Write-Host ''
     Write-Host $rule -ForegroundColor Cyan
@@ -549,7 +642,8 @@ if (-not $DryRun -and -not $Force) {
     $doMigrate   = $isLegacy
     $doStarship  = $true
     $doFastfetch = $true
-    $doDeps      = $false
+    $doZoxide    = $true
+    $doJetBrains = $false
 }
 
 $installPath = Join-Path $installDir 'PrettyPowerShell.ps1'
@@ -565,9 +659,10 @@ if (Test-Path $fastfetchConfigDir) { Backup-Directory -Path $fastfetchConfigDir 
 
 Install-RepoFile -RelativePath 'Profile.ps1' -Destination $installPath
 
-if ($doDeps) { Install-Dependencies }
-if ($doStarship) { Ensure-StarshipConfig | Out-Null }
-if ($doFastfetch) { Ensure-FastfetchConfig | Out-Null }
+Install-TerminalIcons
+if ($doStarship)  { Install-Starship; Ensure-StarshipConfig | Out-Null }
+if ($doFastfetch) { Install-Fastfetch; Ensure-FastfetchConfig | Out-Null }
+Install-Extras -Zoxide $doZoxide -JetBrainsMono $doJetBrains
 
 $migrationResult = if ($doMigrate) {
     Migrate-LegacyProfile -ScriptPath $installPath -BackupDir $backupDir -ForceMigration:$Force
