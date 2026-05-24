@@ -336,7 +336,8 @@ function Ensure-ProfileLoader {
 
     $loaderBlock = (Get-LoaderBlock -ScriptPath $ScriptPath).TrimEnd()
     $loaderPattern = "(?ms)^# Pretty PowerShell loader\r?\nif \(Test-Path '[^']+'\) \{\r?\n    \. '[^']+'\r?\n\}\r?\n?"
-    $current = if (Test-Path $PROFILE) { Get-Content $PROFILE -Raw } else { '' }
+    $rawContent = if (Test-Path $PROFILE) { Get-Content $PROFILE -Raw } else { $null }
+    $current = if ($rawContent) { $rawContent } else { '' }
     $loaderMatches = [regex]::Matches($current, $loaderPattern)
 
     if ($loaderMatches.Count -gt 0) {
