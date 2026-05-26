@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.5] - 2026-05-25
+
+### Added
+
+- Added `$env:VISUAL` and `$env:EDITOR` support to `Get-PrettyPowerShellEditor` — user-defined editor takes precedence over the hardcoded list.
+
+### Changed
+
+- `ep` / `Edit-Profile` now opens `PrettyPowerShell.ps1` instead of `$PROFILE.CurrentUserAllHosts`.
+- Removed `notepad` from the editor detection loop — it is now the explicit fallback only.
+- `$PROFILE` is now sourced automatically at the end of a successful install.
+- `Invoke-WebRequest` now uses `-UseBasicParsing` for Windows PowerShell 5.1 compatibility.
+- JetBrainsMono Nerd Font is now always installed as part of the Windows Terminal setup step, regardless of whether the full config is copied.
+
+[1.1.5]: https://github.com/Villoh/powershell-profile/compare/v1.1.4...v1.1.5
+
 ## [1.1.4] - 2026-05-24
 
 ### Changed
