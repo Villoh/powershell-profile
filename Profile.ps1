@@ -137,18 +137,13 @@ function Update-Profile {
     }
 
     $baseUrl = "https://raw.githubusercontent.com/Villoh/powershell-profile/$Ref"
-    $starshipConfigPath = Get-PrettyPowerShellStarshipConfigPath
     $scriptBackup = Backup-PrettyPowerShellFile -Path $installPath
-    $starshipConfigBackup = Backup-PrettyPowerShellFile -Path $starshipConfigPath
 
-    Invoke-WebRequest -Uri "$baseUrl/Profile.ps1" -OutFile $installPath
+    Invoke-WebRequest -Uri "$baseUrl/Profile.ps1" -OutFile $installPath -UseBasicParsing
 
     Write-Host "Updated Pretty PowerShell script at $installPath" -ForegroundColor Green
     if ($scriptBackup) {
         Write-Host "Backup created: $scriptBackup" -ForegroundColor Yellow
-    }
-    if ($starshipConfigBackup) {
-        Write-Host "Starship config backup created: $starshipConfigBackup" -ForegroundColor Yellow
     }
 }
 
