@@ -153,7 +153,7 @@ function Update-Profile {
 }
 
 function Get-PrettyPowerShellEditor {
-    foreach ($editor in @('nvim', 'code', 'notepad++', 'notepad')) {
+    foreach ($editor in @('nvim', 'code', 'notepad++')) {
         $command = Get-Command $editor -ErrorAction SilentlyContinue
         if ($command) {
             return $command.Source

@@ -748,3 +748,7 @@ if ($migrationResult.Migrated) {
 }
 
 Write-InstallSummary
+
+if (-not $DryRun) {
+    . $PROFILE
+}
