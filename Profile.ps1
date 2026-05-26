@@ -153,6 +153,11 @@ function Update-Profile {
 }
 
 function Get-PrettyPowerShellEditor {
+    $fromEnv = if ($env:VISUAL) { $env:VISUAL } elseif ($env:EDITOR) { $env:EDITOR } else { $null }
+    if ($fromEnv -and (Get-Command $fromEnv -ErrorAction SilentlyContinue)) {
+        return $fromEnv
+    }
+
     foreach ($editor in @('nvim', 'code', 'notepad++')) {
         $command = Get-Command $editor -ErrorAction SilentlyContinue
         if ($command) {
